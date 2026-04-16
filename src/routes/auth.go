@@ -1,20 +1,23 @@
-package main
+package routes
 
 import (
 	"encoding/json"
 	"time"
 
+	"flagpole/src/config"
+	"flagpole/src/controllers"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gofiber/fiber/v3"
 )
 
-type AuthPayload struct {
+type authPayload struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-func SignupRoute(c fiber.Ctx) error {
-	body := new(AuthPayload)
+func signup(c fiber.Ctx) error {
+	body := new(authPayload)
 	if err := json.Unmarshal(c.Body(), body); err != nil {
 		return c.Status(400).SendString("couldn't parse body")
 	}
@@ -22,15 +25,15 @@ func SignupRoute(c fiber.Ctx) error {
 		return c.Status(400).SendString("email and password are required")
 	}
 
-	if err := UserStore.Register(body.Email, body.Password); err != nil {
+	if err := controllers.RegisterUser(body.Email, body.Password); err != nil {
 		return c.Status(409).SendString(err.Error())
 	}
 
 	return c.SendStatus(201)
 }
 
-func LoginRoute(c fiber.Ctx) error {
-	body := new(AuthPayload)
+func login(c fiber.Ctx) error {
+	body := new(authPayload)
 	if err := json.Unmarshal(c.Body(), body); err != nil {
 		return c.Status(400).SendString("couldn't parse body")
 	}
@@ -38,7 +41,7 @@ func LoginRoute(c fiber.Ctx) error {
 		return c.Status(400).SendString("email and password are required")
 	}
 
-	if err := UserStore.Authenticate(body.Email, body.Password); err != nil {
+	if err := controllers.AuthenticateUser(body.Email, body.Password); err != nil {
 		return c.Status(401).SendString(err.Error())
 	}
 
@@ -47,7 +50,7 @@ func LoginRoute(c fiber.Ctx) error {
 		"exp": time.Now().Add(24 * time.Hour).Unix(),
 	})
 
-	signed, err := token.SignedString([]byte(flagReader.jwtSecret))
+	signed, err := token.SignedString([]byte(config.Get().JWTSecret))
 	if err != nil {
 		return c.SendStatus(500)
 	}
