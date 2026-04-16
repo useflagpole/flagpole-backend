@@ -6,24 +6,24 @@ import (
 )
 
 type FlagPayload struct {
-	FlagName string `json:"flagName"`
-	Value bool `json:"value"`
+	FlagName string      `json:"flagName,omitempty"`
+	Type     string      `json:"type,omitempty"`
+	Value    interface{} `json:"value"`
 }
 
-func GetJSONEncodedFlag(flagName string, value bool) (string, error) {
-	if (len(flagName) < 1) {
-		return "", errors.New("Invalid flag name")
-	}
+type FlagResponse struct {
+	FlagName string      `json:"flagName"`
+	Type     FlagType    `json:"type"`
+	Value    interface{} `json:"value"`
+}
 
-	flagPayload := FlagPayload{
-		FlagName: flagName,
-		Value: value,
+func GetJSONEncodedFlag(name string, fv FlagValue) (string, error) {
+	if len(name) < 1 {
+		return "", errors.New("invalid flag name")
 	}
-
-	jsonPayload, err := json.Marshal(flagPayload);
+	payload, err := json.Marshal(FlagResponse{FlagName: name, Type: fv.Type, Value: fv.Value})
 	if err != nil {
-	  panic(err)
+		return "", err
 	}
-
-  return string(jsonPayload), nil
+	return string(payload), nil
 }
