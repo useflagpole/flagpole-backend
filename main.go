@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 var flagReader Flags
@@ -14,7 +14,7 @@ func main() {
 
 	app := fiber.New()
 
-	app.Get("/status", func(c *fiber.Ctx) error {
+	app.Get("/status", func(c fiber.Ctx) error {
 		return c.SendStatus(200)
 	})
 
