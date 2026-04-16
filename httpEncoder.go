@@ -17,6 +17,21 @@ type FlagResponse struct {
 	Value    interface{} `json:"value"`
 }
 
+type EvaluationContext struct {
+	Key        string                 `json:"key"`
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
+}
+
+type EvaluateRequest struct {
+	Context EvaluationContext `json:"context"`
+	Flags   []string          `json:"flags,omitempty"`
+}
+
+type EvaluateResponse struct {
+	Context EvaluationContext  `json:"context"`
+	Flags   map[string]FlagValue `json:"flags"`
+}
+
 func GetJSONEncodedFlag(name string, fv FlagValue) (string, error) {
 	if len(name) < 1 {
 		return "", errors.New("invalid flag name")

@@ -18,6 +18,10 @@ func main() {
 		return c.SendStatus(200)
 	})
 
+	app.Post("/signup", SignupRoute)
+	app.Post("/login", LoginRoute)
+
+	app.Post("/flags/evaluate", EvaluateRoute)
 	app.Post("/flag", AddFlagRoute)
 	app.Get("/flag/:flagname", GetFlagRoute)
 	app.Put("/flag/:flagname", SetFlagRoute)

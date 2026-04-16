@@ -39,6 +39,19 @@ func GetFlagRoute(c fiber.Ctx) error {
 	return c.SendString(payload)
 }
 
+func EvaluateRoute(c fiber.Ctx) error {
+	req := new(EvaluateRequest)
+	if err := json.Unmarshal(c.Body(), req); err != nil {
+		return c.Status(400).SendString("couldn't parse body")
+	}
+	if len(req.Context.Key) == 0 {
+		return c.Status(400).SendString("context.key is required")
+	}
+
+	flags := FeatureFlagMap.EvaluateFlags(req.Flags)
+	return c.JSON(EvaluateResponse{Context: req.Context, Flags: flags})
+}
+
 func SetFlagRoute(c fiber.Ctx) error {
 	flagName := c.Params("flagname")
 	if len(flagName) == 0 {

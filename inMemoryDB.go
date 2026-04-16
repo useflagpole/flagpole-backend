@@ -67,6 +67,22 @@ func (ffmap FeatureFlagMapType) GetFlag(name string) (FlagValue, error) {
 	return fv, nil
 }
 
+func (ffmap FeatureFlagMapType) EvaluateFlags(keys []string) map[string]FlagValue {
+	result := make(map[string]FlagValue)
+	if len(keys) == 0 {
+		for k, v := range ffmap {
+			result[k] = v
+		}
+		return result
+	}
+	for _, k := range keys {
+		if fv, exists := ffmap[k]; exists {
+			result[k] = fv
+		}
+	}
+	return result
+}
+
 func (ffmap FeatureFlagMapType) SetFlag(name string, value interface{}) error {
 	fv, exists := ffmap[name]
 	if !exists {
