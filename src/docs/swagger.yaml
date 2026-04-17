@@ -1,12 +1,5 @@
 basePath: /api/v1
 definitions:
-  handlers.authPayload:
-    properties:
-      email:
-        type: string
-      password:
-        type: string
-    type: object
   handlers.evaluateRequest:
     properties:
       context:
@@ -48,6 +41,38 @@ definitions:
       type:
         $ref: '#/definitions/models.FlagType'
       value: {}
+    type: object
+  handlers.loginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  handlers.orgRequest:
+    properties:
+      name:
+        type: string
+    type: object
+  handlers.orgResponse:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  handlers.signupRequest:
+    properties:
+      email:
+        type: string
+      firstName:
+        type: string
+      lastName:
+        type: string
+      orgId:
+        type: integer
+      password:
+        type: string
     type: object
   models.FlagType:
     enum:
@@ -183,7 +208,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handlers.authPayload'
+          $ref: '#/definitions/handlers.loginRequest'
       produces:
       - application/json
       responses:
@@ -204,17 +229,139 @@ paths:
       summary: Login and receive a JWT
       tags:
       - Authentication
+  /organizations:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.orgResponse'
+            type: array
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: List all organizations
+      tags:
+      - Organizations
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.orgRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.orgResponse'
+        "400":
+          description: bad request
+          schema:
+            type: string
+      summary: Create an organization
+      tags:
+      - Organizations
+  /organizations/{id}:
+    delete:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: invalid id
+          schema:
+            type: string
+        "404":
+          description: not found
+          schema:
+            type: string
+      summary: Delete an organization
+      tags:
+      - Organizations
+    get:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.orgResponse'
+        "400":
+          description: invalid id
+          schema:
+            type: string
+        "404":
+          description: not found
+          schema:
+            type: string
+      summary: Get an organization by ID
+      tags:
+      - Organizations
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Organization data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.orgRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.orgResponse'
+        "400":
+          description: bad request
+          schema:
+            type: string
+        "404":
+          description: not found
+          schema:
+            type: string
+      summary: Update an organization
+      tags:
+      - Organizations
   /signup:
     post:
       consumes:
       - application/json
       parameters:
-      - description: Credentials
+      - description: Sign up data
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handlers.authPayload'
+          $ref: '#/definitions/handlers.signupRequest'
       produces:
       - text/plain
       responses:

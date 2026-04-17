@@ -1,6 +1,8 @@
 package database
 
 import (
+	"log"
+
 	"flagpole/src/models"
 
 	"gorm.io/driver/postgres"
@@ -18,5 +20,17 @@ func Init(dsn string) error {
 	if err != nil {
 		return err
 	}
-	return DB.AutoMigrate(&models.User{}, &models.FeatureFlag{})
+	migrate()
+	seedDatabase()
+	return nil
+}
+
+func migrate() {
+	if err := DB.Exec("CREATE SCHEMA IF NOT EXISTS auth").Error; err != nil {
+		log.Fatalf("failed to create auth schema: %v", err)
+	}
+	if err := DB.AutoMigrate(&models.Role{}, &models.Organization{}, &models.User{}, &models.FeatureFlag{}); err != nil {
+		log.Fatalf("failed to run migrations: %v", err)
+	}
+	log.Println("Migrations applied")
 }

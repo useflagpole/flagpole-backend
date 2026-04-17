@@ -2,35 +2,63 @@ package controllers
 
 import (
 	"errors"
+	"log"
 
 	"flagpole/src/dal"
-
-	"golang.org/x/crypto/bcrypt"
+	"flagpole/src/models"
+	"flagpole/src/pkg/crypto"
 )
 
 var ErrEmailAlreadyRegistered = errors.New("email already registered")
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
-func RegisterUser(email, password string) error {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+func RegisterUser(email, firstName, lastName, password string, orgID uint) (*models.User, error) {
+	if dal.User.EmailExists(email) {
+		return nil, ErrEmailAlreadyRegistered
+	}
+
+	viewerRole, err := dal.Role.GetByName("viewer")
 	if err != nil {
-		return err
+		log.Printf("RegisterUser: viewer role lookup failed: %v", err)
+		return nil, errors.New("internal error")
 	}
-	if err := dal.User.Create(email, string(hash)); err != nil {
-		return ErrEmailAlreadyRegistered
+
+	salt, err := crypto.GenerateSalt()
+	if err != nil {
+		return nil, err
 	}
-	return nil
+
+	hash, err := crypto.HashPassword(password, salt)
+	if err != nil {
+		return nil, err
+	}
+
+	user := &models.User{
+		Email:     email,
+		FirstName: firstName,
+		LastName:  lastName,
+		PwdHash:   hash,
+		PwdSalt:   salt,
+		RoleID:    viewerRole.ID,
+		OrgID:     orgID,
+	}
+
+	if err := dal.User.Create(user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
 
-func AuthenticateUser(email, password string) error {
-	user, err := dal.User.FindByEmail(email)
+func AuthenticateUser(email, password string) (*models.User, error) {
+	user, err := dal.User.GetByEmail(email)
 	if err != nil {
-		// run bcrypt anyway to prevent timing attacks
-		bcrypt.CompareHashAndPassword([]byte("$2a$10$invalid"), []byte(password))
-		return ErrInvalidCredentials
+		return nil, ErrInvalidCredentials
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return ErrInvalidCredentials
+
+	if !crypto.VerifyPassword(password, user.PwdSalt, user.PwdHash) {
+		return nil, ErrInvalidCredentials
 	}
-	return nil
+
+	return user, nil
 }

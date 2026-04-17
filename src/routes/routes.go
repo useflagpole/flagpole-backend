@@ -3,6 +3,7 @@ package routes
 import (
 	"flagpole/src/config"
 	"flagpole/src/handlers"
+	"flagpole/src/middleware"
 	"log"
 
 	"github.com/gofiber/fiber/v3"
@@ -21,11 +22,9 @@ func Setup(app *fiber.App) {
 
 	api.Get("/status", func(c fiber.Ctx) error { return c.SendStatus(200) })
 
-	api.Post("/signup", handlers.Signup)
-	api.Post("/login", handlers.Login)
+	registerAnonRoutes(api)
 
-	api.Post("/flags/evaluate", handlers.EvaluateFlags)
-	api.Post("/flag", handlers.AddFlag)
-	api.Get("/flag/:flagname", handlers.GetFlag)
-	api.Put("/flag/:flagname", handlers.SetFlag)
+	guarded := api.Group("/", middleware.Auth)
+	registerOrganizationRoutes(guarded)
+	registerFlagRoutes(guarded)
 }

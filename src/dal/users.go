@@ -9,12 +9,19 @@ type userDAL struct{}
 
 var User = userDAL{}
 
-func (userDAL) Create(email, passwordHash string) error {
-	return database.DB.Create(&models.User{Email: email, PasswordHash: passwordHash}).Error
+func (userDAL) Create(user *models.User) error {
+	return database.DB.Create(user).Error
 }
 
-func (userDAL) FindByEmail(email string) (models.User, error) {
+func (userDAL) GetByEmail(email string) (*models.User, error) {
 	var user models.User
-	err := database.DB.Where("email = ?", email).First(&user).Error
-	return user, err
+	if err := database.DB.Where("email = ?", email).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (userDAL) EmailExists(email string) bool {
+	var user models.User
+	return database.DB.Where("email = ?", email).First(&user).Error == nil
 }
