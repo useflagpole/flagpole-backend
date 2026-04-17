@@ -1,15 +1,31 @@
 package routes
 
-import "github.com/gofiber/fiber/v3"
+import (
+	"flagpole/src/config"
+	"flagpole/src/handlers"
+	"log"
+
+	"github.com/gofiber/fiber/v3"
+)
+
+const apiVersion = "v1"
 
 func Setup(app *fiber.App) {
-	app.Get("/status", func(c fiber.Ctx) error { return c.SendStatus(200) })
+	if config.Get().Env == "dev" {
+		app.Get("/docs", func(c fiber.Ctx) error { return c.Redirect().To("/docs/index.html") })
+		app.Get("/docs/*", handlers.HostSwaggerDocs)
+		log.Println("Dev env detected. Serving docs")
+	}
 
-	app.Post("/signup", signup)
-	app.Post("/login", login)
+	api := app.Group("/api/" + apiVersion)
 
-	app.Post("/flags/evaluate", evaluateFlags)
-	app.Post("/flag", addFlag)
-	app.Get("/flag/:flagname", getFlag)
-	app.Put("/flag/:flagname", setFlag)
+	api.Get("/status", func(c fiber.Ctx) error { return c.SendStatus(200) })
+
+	api.Post("/signup", handlers.Signup)
+	api.Post("/login", handlers.Login)
+
+	api.Post("/flags/evaluate", handlers.EvaluateFlags)
+	api.Post("/flag", handlers.AddFlag)
+	api.Get("/flag/:flagname", handlers.GetFlag)
+	api.Put("/flag/:flagname", handlers.SetFlag)
 }

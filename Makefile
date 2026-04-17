@@ -12,4 +12,7 @@ test:
 clean:
 	rm -f $(BIN)
 
-.PHONY: build run test clean
+swag:
+	$(shell go env GOPATH)/bin/swag init -g src/main.go --output src/docs
+
+.PHONY: build run test clean swag

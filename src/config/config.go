@@ -1,23 +1,58 @@
 package config
 
-import "flag"
+import (
+	"flag"
+	"log"
+	"os"
+
+	"github.com/joho/godotenv"
+)
 
 type Config struct {
 	Port      string
 	JWTSecret string
 	DSN       string
+	Env       string
 }
 
-var cfg *Config
+var cfg Config
 
-func Get() *Config {
-	if cfg != nil {
-		return cfg
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
 	}
-	port      := flag.String("port", "4000", "Port in which the Flagpole API will serve")
-	jwtSecret := flag.String("jwt-secret", "change-me", "Secret key used to sign JWT tokens")
+	return fallback
+}
+
+func init() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, reading config from environment")
+	}
+
+	cfg = Config{
+		Port:      getEnv("PORT", "4000"),
+		JWTSecret: getEnv("JWT_SECRET", "change-me"),
+		DSN:       getEnv("DSN", ""),
+		Env:       getEnv("ENV", ""),
+	}
+
+	port      := flag.String("port", "", "Port in which the Flagpole API will serve")
+	jwtSecret := flag.String("jwt-secret", "", "Secret key used to sign JWT tokens")
 	dsn       := flag.String("dsn", "", "PostgreSQL DSN (e.g. host=localhost user=postgres password=postgres dbname=flagpole port=5432 sslmode=disable)")
 	flag.Parse()
-	cfg = &Config{Port: *port, JWTSecret: *jwtSecret, DSN: *dsn}
+
+	flag.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "port":
+			cfg.Port = *port
+		case "jwt-secret":
+			cfg.JWTSecret = *jwtSecret
+		case "dsn":
+			cfg.DSN = *dsn
+		}
+	})
+}
+
+func Get() Config {
 	return cfg
 }

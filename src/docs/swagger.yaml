@@ -1,0 +1,234 @@
+basePath: /api/v1
+definitions:
+  handlers.authPayload:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  handlers.evaluateRequest:
+    properties:
+      context:
+        $ref: '#/definitions/handlers.evaluationContext'
+      flags:
+        items:
+          type: string
+        type: array
+    type: object
+  handlers.evaluateResponse:
+    properties:
+      context:
+        $ref: '#/definitions/handlers.evaluationContext'
+      flags:
+        additionalProperties:
+          $ref: '#/definitions/models.FlagValue'
+        type: object
+    type: object
+  handlers.evaluationContext:
+    properties:
+      attributes:
+        additionalProperties: true
+        type: object
+      key:
+        type: string
+    type: object
+  handlers.flagPayload:
+    properties:
+      flagName:
+        type: string
+      type:
+        type: string
+      value: {}
+    type: object
+  handlers.flagResponse:
+    properties:
+      flagName:
+        type: string
+      type:
+        $ref: '#/definitions/models.FlagType'
+      value: {}
+    type: object
+  models.FlagType:
+    enum:
+    - bool
+    - string
+    - number
+    type: string
+    x-enum-varnames:
+    - FlagTypeBool
+    - FlagTypeString
+    - FlagTypeNumber
+  models.FlagValue:
+    properties:
+      type:
+        $ref: '#/definitions/models.FlagType'
+      value: {}
+    type: object
+host: localhost:4000
+info:
+  contact: {}
+  description: Feature flag management API
+  title: Flagpole API
+  version: "1.0"
+paths:
+  /flag:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Flag definition
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.flagPayload'
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: bad request
+          schema:
+            type: string
+      summary: Create a feature flag
+      tags:
+      - flags
+  /flag/{flagname}:
+    get:
+      parameters:
+      - description: Flag name
+        in: path
+        name: flagname
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.flagResponse'
+        "400":
+          description: missing flagname
+          schema:
+            type: string
+        "404":
+          description: flag not found
+          schema:
+            type: string
+      summary: Get a feature flag
+      tags:
+      - flags
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Flag name
+        in: path
+        name: flagname
+        required: true
+        type: string
+      - description: New value
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.flagPayload'
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: bad request
+          schema:
+            type: string
+      summary: Update a feature flag's value
+      tags:
+      - flags
+  /flags/evaluate:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Evaluation request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.evaluateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.evaluateResponse'
+        "400":
+          description: bad request
+          schema:
+            type: string
+      summary: Evaluate feature flags for a context
+      tags:
+      - flags
+  /login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.authPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: bad request
+          schema:
+            type: string
+        "401":
+          description: invalid credentials
+          schema:
+            type: string
+      summary: Login and receive a JWT
+      tags:
+      - Authentication
+  /signup:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.authPayload'
+      produces:
+      - text/plain
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: bad request
+          schema:
+            type: string
+        "409":
+          description: email already in use
+          schema:
+            type: string
+      summary: Register a new user
+      tags:
+      - Authentication
+swagger: "2.0"

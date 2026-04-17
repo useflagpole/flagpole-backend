@@ -1,4 +1,4 @@
-package routes
+package handlers
 
 import (
 	"encoding/json"
@@ -7,8 +7,8 @@ import (
 	"flagpole/src/config"
 	"flagpole/src/controllers"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/gofiber/fiber/v3"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type authPayload struct {
@@ -16,7 +16,17 @@ type authPayload struct {
 	Password string `json:"password"`
 }
 
-func signup(c fiber.Ctx) error {
+// Signup godoc
+// @Summary      Register a new user
+// @Tags         Authentication
+// @Accept       json
+// @Produce      plain
+// @Param        body body authPayload true "Credentials"
+// @Success      201
+// @Failure      400 {string} string "bad request"
+// @Failure      409 {string} string "email already in use"
+// @Router       /signup [post]
+func Signup(c fiber.Ctx) error {
 	body := new(authPayload)
 	if err := json.Unmarshal(c.Body(), body); err != nil {
 		return c.Status(400).SendString("couldn't parse body")
@@ -32,7 +42,17 @@ func signup(c fiber.Ctx) error {
 	return c.SendStatus(201)
 }
 
-func login(c fiber.Ctx) error {
+// Login godoc
+// @Summary      Login and receive a JWT
+// @Tags         Authentication
+// @Accept       json
+// @Produce      json
+// @Param        body body authPayload true "Credentials"
+// @Success      200 {object} map[string]string
+// @Failure      400 {string} string "bad request"
+// @Failure      401 {string} string "invalid credentials"
+// @Router       /login [post]
+func Login(c fiber.Ctx) error {
 	body := new(authPayload)
 	if err := json.Unmarshal(c.Body(), body); err != nil {
 		return c.Status(400).SendString("couldn't parse body")

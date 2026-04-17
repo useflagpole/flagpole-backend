@@ -1,4 +1,4 @@
-package routes
+package handlers
 
 import (
 	"encoding/json"
@@ -36,7 +36,16 @@ type evaluateResponse struct {
 	Flags   map[string]models.FlagValue `json:"flags"`
 }
 
-func addFlag(c fiber.Ctx) error {
+// AddFlag godoc
+// @Summary      Create a feature flag
+// @Tags         flags
+// @Accept       json
+// @Produce      plain
+// @Param        body body flagPayload true "Flag definition"
+// @Success      200
+// @Failure      400 {string} string "bad request"
+// @Router       /flag [post]
+func AddFlag(c fiber.Ctx) error {
 	body := new(flagPayload)
 	if err := json.Unmarshal(c.Body(), body); err != nil {
 		return c.Status(400).SendString("couldn't parse body")
@@ -49,7 +58,16 @@ func addFlag(c fiber.Ctx) error {
 	return c.SendStatus(200)
 }
 
-func getFlag(c fiber.Ctx) error {
+// GetFlag godoc
+// @Summary      Get a feature flag
+// @Tags         flags
+// @Produce      json
+// @Param        flagname path string true "Flag name"
+// @Success      200 {object} flagResponse
+// @Failure      400 {string} string "missing flagname"
+// @Failure      404 {string} string "flag not found"
+// @Router       /flag/{flagname} [get]
+func GetFlag(c fiber.Ctx) error {
 	flagName := c.Params("flagname")
 	if len(flagName) == 0 {
 		return c.Status(400).SendString("missing flagname")
@@ -68,7 +86,17 @@ func getFlag(c fiber.Ctx) error {
 	return c.Send(payload)
 }
 
-func setFlag(c fiber.Ctx) error {
+// SetFlag godoc
+// @Summary      Update a feature flag's value
+// @Tags         flags
+// @Accept       json
+// @Produce      plain
+// @Param        flagname path string true "Flag name"
+// @Param        body body flagPayload true "New value"
+// @Success      200
+// @Failure      400 {string} string "bad request"
+// @Router       /flag/{flagname} [put]
+func SetFlag(c fiber.Ctx) error {
 	flagName := c.Params("flagname")
 	if len(flagName) == 0 {
 		return c.Status(400).SendString("missing flagname")
@@ -86,7 +114,16 @@ func setFlag(c fiber.Ctx) error {
 	return c.SendStatus(200)
 }
 
-func evaluateFlags(c fiber.Ctx) error {
+// EvaluateFlags godoc
+// @Summary      Evaluate feature flags for a context
+// @Tags         flags
+// @Accept       json
+// @Produce      json
+// @Param        body body evaluateRequest true "Evaluation request"
+// @Success      200 {object} evaluateResponse
+// @Failure      400 {string} string "bad request"
+// @Router       /flags/evaluate [post]
+func EvaluateFlags(c fiber.Ctx) error {
 	req := new(evaluateRequest)
 	if err := json.Unmarshal(c.Body(), req); err != nil {
 		return c.Status(400).SendString("couldn't parse body")
