@@ -15,6 +15,38 @@ type projectRequest struct {
 	Name string `json:"name"`
 }
 
+// ListProjects godoc
+// @Summary      List projects for an organization
+// @Tags         Projects
+// @Produce      json
+// @Param        org_id path int true "Organization ID"
+// @Success      200 {object} response.DataResponse
+// @Failure      400 {object} response.ErrorResponse
+// @Failure      403 {object} response.ErrorResponse
+// @Failure      404 {object} response.ErrorResponse
+// @Router       /organizations/{org_id}/projects [get]
+func ListProjects(c fiber.Ctx) (int, response.APIResponse) {
+	orgID, err := strconv.ParseUint(c.Params("org_id"), 10, 64)
+	if err != nil {
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "invalid org id"}
+	}
+
+	if _, err := dal.Organization.GetByID(uint(orgID)); err != nil {
+		return fiber.StatusNotFound, response.ErrorResponse{Error: "organization not found"}
+	}
+
+	if !dal.Organization.IsMember(uint(orgID), jwtutil.UserID(c)) {
+		return fiber.StatusForbidden, response.ErrorResponse{Error: "forbidden"}
+	}
+
+	projects, err := dal.Project.ListByOrg(uint(orgID))
+	if err != nil {
+		return fiber.StatusInternalServerError, response.Error500
+	}
+
+	return fiber.StatusOK, response.DataResponse{Data: projects}
+}
+
 // CreateProject godoc
 // @Summary      Create a project within an organization
 // @Tags         Projects

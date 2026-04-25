@@ -8,5 +8,6 @@ import (
 )
 
 func registerProjectRoutes(api fiber.Router) {
+	api.Get("/organizations/:org_id/projects", response.Wrap(handlers.ListProjects))
 	api.Post("/organizations/:org_id/projects", response.Wrap(handlers.CreateProject))
 }
