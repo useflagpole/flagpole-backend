@@ -3,6 +3,8 @@ package dal
 import (
 	"flagpole/src/database"
 	"flagpole/src/models"
+
+	"github.com/google/uuid"
 )
 
 type organizationDAL struct{}
@@ -35,4 +37,23 @@ func (organizationDAL) Save(org *models.Organization) error {
 
 func (organizationDAL) Delete(org *models.Organization) error {
 	return database.DB.Delete(org).Error
+}
+
+func (organizationDAL) ListByUser(userID uuid.UUID) ([]models.Organization, error) {
+	var orgs []models.Organization
+	err := database.DB.
+		Joins("JOIN auth.user_organizations uo ON uo.organization_id = organizations.id").
+		Where("uo.user_id = ?", userID).
+		Find(&orgs).Error
+	if err != nil {
+		return nil, err
+	}
+	return orgs, nil
+}
+
+func (organizationDAL) AddUser(orgID uint, userID uuid.UUID) error {
+	return database.DB.Create(&models.UserOrganization{
+		OrganizationID: orgID,
+		UserID:         userID,
+	}).Error
 }

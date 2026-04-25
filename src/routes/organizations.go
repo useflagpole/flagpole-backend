@@ -2,15 +2,16 @@ package routes
 
 import (
 	"flagpole/src/handlers"
+	"flagpole/src/pkg/response"
 
 	"github.com/gofiber/fiber/v3"
 )
 
 func registerOrganizationRoutes(api fiber.Router) {
 	orgs := api.Group("/organizations")
-	orgs.Get("/", handlers.ListOrganizations)
-	orgs.Get("/:id", handlers.GetOrganization)
-	orgs.Post("/", handlers.CreateOrganization)
-	orgs.Put("/:id", handlers.UpdateOrganization)
-	orgs.Delete("/:id", handlers.DeleteOrganization)
+	orgs.Get("/", response.Wrap(handlers.ListOrganizations))
+	orgs.Get("/:id", response.Wrap(handlers.GetOrganization))
+	orgs.Post("/", response.Wrap(handlers.CreateOrganization))
+	orgs.Put("/:id", response.Wrap(handlers.UpdateOrganization))
+	orgs.Delete("/:id", response.Wrap(handlers.DeleteOrganization))
 }

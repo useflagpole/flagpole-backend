@@ -7,12 +7,14 @@ import (
 	"flagpole/src/dal"
 	"flagpole/src/models"
 	"flagpole/src/pkg/crypto"
+
+	"github.com/google/uuid"
 )
 
 var ErrEmailAlreadyRegistered = errors.New("email already registered")
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
-func RegisterUser(email, firstName, lastName, password string, orgID uint) (*models.User, error) {
+func RegisterUser(email, firstName, lastName, password string) (*models.User, error) {
 	if dal.User.EmailExists(email) {
 		return nil, ErrEmailAlreadyRegistered
 	}
@@ -40,7 +42,6 @@ func RegisterUser(email, firstName, lastName, password string, orgID uint) (*mod
 		PwdHash:   hash,
 		PwdSalt:   salt,
 		RoleID:    viewerRole.ID,
-		OrgID:     orgID,
 	}
 
 	if err := dal.User.Create(user); err != nil {
@@ -48,6 +49,10 @@ func RegisterUser(email, firstName, lastName, password string, orgID uint) (*mod
 	}
 
 	return user, nil
+}
+
+func GetUserOrganizations(userID uuid.UUID) ([]models.Organization, error) {
+	return dal.Organization.ListByUser(userID)
 }
 
 func AuthenticateUser(email, password string) (*models.User, error) {

@@ -5,12 +5,13 @@ import (
 
 	"flagpole/src/models"
 	"flagpole/src/pkg/crypto"
+
+	"gorm.io/gorm"
 )
 
 func seedDatabase() {
 	seedRoles()
-	seedAdminOrg()
-	seedAdminUser()
+	seedAdmin()
 }
 
 func seedRoles() {
@@ -31,35 +32,18 @@ func seedRoles() {
 	}
 }
 
-func seedAdminOrg() {
-	var existing models.Organization
-	if err := DB.Where("name = ?", "Flagpole").First(&existing).Error; err != nil {
-		org := models.Organization{Name: "Flagpole"}
-		if err := DB.Create(&org).Error; err != nil {
-			log.Fatalf("failed to seed admin organization: %v", err)
-		}
-		log.Println("Seeded organization: Flagpole")
-	}
-}
-
-func seedAdminUser() {
-	var adminRole models.Role
-	if err := DB.Where("name = ?", "admin").First(&adminRole).Error; err != nil {
-		log.Fatalf("failed to find admin role: %v", err)
-	}
-
-	var adminOrg models.Organization
-	if err := DB.Where("name = ?", "Flagpole").First(&adminOrg).Error; err != nil {
-		log.Fatalf("failed to find admin organization: %v", err)
-	}
-
-	var count int64
-	DB.Model(&models.User{}).Where("role_id = ? AND org_id = ?", adminRole.ID, adminOrg.ID).Count(&count)
-	if count > 0 {
+func seedAdmin() {
+	var existing models.User
+	if err := DB.Where("email = ?", "admin@flagpole.dev").First(&existing).Error; err == nil {
 		return
 	}
 
 	log.Println("Admin account not found, generating...")
+
+	var adminRole models.Role
+	if err := DB.Where("name = ?", "admin").First(&adminRole).Error; err != nil {
+		log.Fatalf("failed to find admin role: %v", err)
+	}
 
 	password, err := crypto.GenerateRandomPassword(8)
 	if err != nil {
@@ -83,11 +67,27 @@ func seedAdminUser() {
 		PwdHash:   hash,
 		PwdSalt:   salt,
 		RoleID:    adminRole.ID,
-		OrgID:     adminOrg.ID,
 	}
 
 	if err := DB.Create(&admin).Error; err != nil {
 		log.Fatalf("failed to create admin user: %v", err)
+	}
+
+	err = DB.Transaction(func(tx *gorm.DB) error {
+		org := models.Organization{
+			Name:    "Flagpole",
+			OwnerID: admin.ID,
+		}
+		if err := tx.Create(&org).Error; err != nil {
+			return err
+		}
+		return tx.Create(&models.UserOrganization{
+			OrganizationID: org.ID,
+			UserID:         admin.ID,
+		}).Error
+	})
+	if err != nil {
+		log.Fatalf("failed to seed admin organization: %v", err)
 	}
 
 	log.Println("-----------------------------")

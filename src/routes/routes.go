@@ -7,11 +7,18 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
 )
 
 const apiVersion = "v1"
 
 func Setup(app *fiber.App) {
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: []string{config.Get().AllowOrigin},
+		AllowHeaders: []string{"Origin", "Content-Type", "Authorization"},
+		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
+	}))
+
 	if config.Get().Env == "dev" {
 		app.Get("/docs", func(c fiber.Ctx) error { return c.Redirect().To("/docs/index.html") })
 		app.Get("/docs/*", handlers.HostSwaggerDocs)
@@ -25,6 +32,7 @@ func Setup(app *fiber.App) {
 	registerAnonRoutes(api)
 
 	guarded := api.Group("/", middleware.Auth)
+	registerUserRoutes(guarded)
 	registerOrganizationRoutes(guarded)
 	registerFlagRoutes(guarded)
 }
