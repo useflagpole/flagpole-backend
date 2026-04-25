@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 func Auth(c fiber.Ctx) error {
@@ -32,6 +33,13 @@ func Auth(c fiber.Ctx) error {
 		return c.Status(401).SendString("invalid token claims")
 	}
 
+	userIDStr, _ := claims["userId"].(string)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return c.Status(401).SendString("invalid token: bad user id")
+	}
+
 	c.Locals("claims", claims)
+	c.Locals("userID", userID)
 	return c.Next()
 }

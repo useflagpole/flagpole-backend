@@ -9,10 +9,11 @@ import (
 )
 
 type Config struct {
-	Port      string
-	JWTSecret string
-	DSN       string
-	Env       string
+	Port        string
+	JWTSecret   string
+	DSN         string
+	Env         string
+	AllowOrigin string
 }
 
 var cfg Config
@@ -30,10 +31,11 @@ func init() {
 	}
 
 	cfg = Config{
-		Port:      getEnv("PORT", "4000"),
-		JWTSecret: getEnv("JWT_SECRET", "change-me"),
-		DSN:       getEnv("DSN", ""),
-		Env:       getEnv("ENV", ""),
+		Port:        getEnv("PORT", "4000"),
+		JWTSecret:   getEnv("JWT_SECRET", "change-me"),
+		DSN:         getEnv("DSN", ""),
+		Env:         getEnv("ENV", ""),
+		AllowOrigin: getEnv("ALLOW_ORIGIN", "http://localhost:5173"),
 	}
 
 	port      := flag.String("port", "", "Port in which the Flagpole API will serve")

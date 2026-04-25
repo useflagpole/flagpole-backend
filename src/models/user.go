@@ -7,14 +7,14 @@ import (
 
 type User struct {
 	Base
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey"`
-	Email     string    `gorm:"uniqueIndex;not null"`
-	FirstName string    `gorm:"not null"`
-	LastName  string    `gorm:"not null"`
-	PwdHash   string    `gorm:"not null"`
-	PwdSalt   string    `gorm:"not null"`
-	RoleID    uint      `gorm:"not null;constraint:OnDelete:RESTRICT"`
-	OrgID     uint      `gorm:"not null;constraint:OnDelete:RESTRICT"`
+	ID            uuid.UUID      `gorm:"type:uuid;primaryKey"`
+	Email         string         `gorm:"uniqueIndex;not null"`
+	FirstName     string         `gorm:"not null"`
+	LastName      string         `gorm:"not null"`
+	PwdHash       string         `gorm:"not null"`
+	PwdSalt       string         `gorm:"not null"`
+	RoleID        uint           `gorm:"not null;constraint:OnDelete:RESTRICT"`
+	Organizations []Organization `gorm:"many2many:auth.user_organizations;joinForeignKey:UserID;joinReferences:OrganizationID"`
 }
 
 func (User) TableName() string {

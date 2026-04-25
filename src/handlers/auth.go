@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"log"
 	"strings"
-	"time"
 
 	"flagpole/src/config"
 	"flagpole/src/controllers"
 	"flagpole/src/dal"
+	"flagpole/src/pkg/response"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
@@ -18,7 +18,6 @@ type signupRequest struct {
 	FirstName string `json:"firstName"`
 	LastName  string `json:"lastName"`
 	Password  string `json:"password"`
-	OrgID     uint   `json:"orgId"`
 }
 
 type loginRequest struct {
@@ -30,16 +29,16 @@ type loginRequest struct {
 // @Summary      Register a new user
 // @Tags         Authentication
 // @Accept       json
-// @Produce      plain
+// @Produce      json
 // @Param        body body signupRequest true "Sign up data"
-// @Success      201
-// @Failure      400 {string} string "bad request"
-// @Failure      409 {string} string "email already in use"
+// @Success      201 {object} response.DataResponse
+// @Failure      400 {object} response.ErrorResponse
+// @Failure      409 {object} response.ErrorResponse
 // @Router       /signup [post]
-func Signup(c fiber.Ctx) error {
+func Signup(c fiber.Ctx) (int, response.APIResponse) {
 	var req signupRequest
 	if err := c.Bind().JSON(&req); err != nil {
-		return c.Status(400).SendString("couldn't parse body")
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "couldn't parse body"}
 	}
 
 	req.Email = strings.TrimSpace(req.Email)
@@ -47,20 +46,17 @@ func Signup(c fiber.Ctx) error {
 	req.LastName = strings.TrimSpace(req.LastName)
 
 	if req.Email == "" || req.Password == "" || req.FirstName == "" || req.LastName == "" {
-		return c.Status(400).SendString("email, firstName, lastName and password are required")
-	}
-	if req.OrgID == 0 {
-		return c.Status(400).SendString("orgId is required")
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "email, firstName, lastName and password are required"}
 	}
 
-	if _, err := controllers.RegisterUser(req.Email, req.FirstName, req.LastName, req.Password, req.OrgID); err != nil {
+	if _, err := controllers.RegisterUser(req.Email, req.FirstName, req.LastName, req.Password); err != nil {
 		if err == controllers.ErrEmailAlreadyRegistered {
-			return c.Status(409).SendString(err.Error())
+			return fiber.StatusConflict, response.ErrEmailTaken
 		}
-		return c.SendStatus(500)
+		return fiber.StatusInternalServerError, response.Error500
 	}
 
-	return c.SendStatus(201)
+	return fiber.StatusCreated, nil
 }
 
 // Login godoc
@@ -69,37 +65,37 @@ func Signup(c fiber.Ctx) error {
 // @Accept       json
 // @Produce      json
 // @Param        body body loginRequest true "Credentials"
-// @Success      200 {object} map[string]string
-// @Failure      400 {string} string "bad request"
-// @Failure      401 {string} string "invalid credentials"
+// @Success      200 {object} response.DataResponse
+// @Failure      400 {object} response.ErrorResponse
+// @Failure      401 {object} response.ErrorResponse
 // @Router       /login [post]
-func Login(c fiber.Ctx) error {
+func Login(c fiber.Ctx) (int, response.APIResponse) {
 	var req loginRequest
 	if err := c.Bind().JSON(&req); err != nil {
-		return c.Status(400).SendString("couldn't parse body")
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "couldn't parse body"}
 	}
 
 	req.Email = strings.TrimSpace(req.Email)
 
 	if req.Email == "" || req.Password == "" {
-		return c.Status(400).SendString("email and password are required")
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "email and password are required"}
 	}
 
 	user, err := controllers.AuthenticateUser(req.Email, req.Password)
 	if err != nil {
-		return c.Status(401).SendString(err.Error())
+		return fiber.StatusUnauthorized, response.ErrInvalidCredentials
 	}
 
 	role, err := dal.Role.GetByID(user.RoleID)
 	if err != nil {
-		log.Printf("Login: role lookup failed for user %s: %v", user.ID, err)
-		return c.SendStatus(500)
+		return fiber.StatusInternalServerError, response.Error500
 	}
 
-	org, err := dal.Organization.GetByID(user.OrgID)
-	if err != nil {
-		log.Printf("Login: org lookup failed for user %s: %v", user.ID, err)
-		return c.SendStatus(500)
+	orgIDs := make([]uint, len(user.Organizations))
+	orgNames := make([]string, len(user.Organizations))
+	for i, org := range user.Organizations {
+		orgIDs[i] = org.ID
+		orgNames[i] = org.Name
 	}
 
 	claims := jwt.MapClaims{
@@ -108,15 +104,15 @@ func Login(c fiber.Ctx) error {
 		"lastName":  user.LastName,
 		"email":     user.Email,
 		"role":      role.Name,
-		"orgId":     user.OrgID,
-		"orgName":   org.Name,
+		"orgIds":    orgIDs,
+		"orgNames":  orgNames,
 		"exp":       time.Now().Add(24 * time.Hour).Unix(),
 	}
 
 	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(config.Get().JWTSecret))
 	if err != nil {
-		return c.SendStatus(500)
+		return fiber.StatusInternalServerError, response.Error500
 	}
 
-	return c.JSON(fiber.Map{"token": token})
+	return fiber.StatusOK, response.DataResponse{Data: fiber.Map{"token": token}}
 }
