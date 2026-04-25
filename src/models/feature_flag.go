@@ -10,9 +10,9 @@ import (
 type FlagType string
 
 const (
-	FlagTypeBool   FlagType = "bool"
-	FlagTypeString FlagType = "string"
-	FlagTypeNumber FlagType = "number"
+	FLAG_TYPE_BOOL   FlagType = "bool"
+	FLAG_TYPE_STRING FlagType = "string"
+	FLAG_TYPE_NUMBER FlagType = "number"
 )
 
 type FlagValue struct {
@@ -37,15 +37,15 @@ func (f FeatureFlag) ToFlagValue() (FlagValue, error) {
 
 func ValidateValue(flagType FlagType, value interface{}) error {
 	switch flagType {
-	case FlagTypeBool:
+	case FLAG_TYPE_BOOL:
 		if _, ok := value.(bool); !ok {
 			return errors.New("value must be a boolean")
 		}
-	case FlagTypeString:
+	case FLAG_TYPE_STRING:
 		if _, ok := value.(string); !ok {
 			return errors.New("value must be a string")
 		}
-	case FlagTypeNumber:
+	case FLAG_TYPE_NUMBER:
 		if _, ok := value.(float64); !ok {
 			return errors.New("value must be a number")
 		}

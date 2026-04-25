@@ -12,27 +12,45 @@ import (
 	"gorm.io/gorm"
 )
 
-var ErrOrgLimitReached = errors.New("organization limit reached")
-var ErrInvalidPlan    = errors.New("invalid plan")
+const INTERNAL_ORG_NAME = "Flagpole"
+const ALLOWED_PLAN     = "free"
+const MAX_ORGS_PER_USER  = 1
 
-const AllowedPlan = "free"
+var ErrOrgLimitReached  = errors.New("organization limit reached")
+var ErrInvalidPlan      = errors.New("invalid plan")
+var ErrReservedOrgName  = errors.New("invalid organization name")
+
+func IsInternalOrg(name string) bool {
+	return name == INTERNAL_ORG_NAME
+}
+
+func IsInternalUser(orgNames []interface{}) bool {
+	for _, name := range orgNames {
+		if name == INTERNAL_ORG_NAME {
+			return true
+		}
+	}
+	return false
+}
 
 func SetOrganizationPlan(orgID uint, plan string) error {
-	if plan != AllowedPlan {
+	if plan != ALLOWED_PLAN {
 		return ErrInvalidPlan
 	}
 	return dal.Organization.SetPlan(orgID, plan)
 }
 
-const MaxOrgsPerUser = 1
-
 func CreateOrganization(name string, userID uuid.UUID) (*models.Organization, error) {
+	if IsInternalOrg(name) {
+		return nil, ErrReservedOrgName
+	}
+
 	owned, err := dal.User.CountOwnedOrganizations(userID)
 	if err != nil {
 		log.Printf("CreateOrganization: owned org count failed: %v", err)
 		return nil, errors.New("internal error")
 	}
-	if owned >= MaxOrgsPerUser {
+	if owned >= MAX_ORGS_PER_USER {
 		return nil, ErrOrgLimitReached
 	}
 
@@ -60,4 +78,16 @@ func CreateOrganization(name string, userID uuid.UUID) (*models.Organization, er
 	}
 
 	return org, nil
+}
+
+func UpdateOrganization(org *models.Organization, newName string) (*models.Organization, error) {
+	org.Name = newName
+	if err := dal.Organization.Save(org); err != nil {
+		return nil, err
+	}
+	return org, nil
+}
+
+func DeleteOrganization(org *models.Organization) error {
+	return dal.Organization.Delete(org)
 }

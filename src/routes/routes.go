@@ -10,7 +10,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/cors"
 )
 
-const apiVersion = "v1"
+const API_VERSION = "v1"
 
 func Setup(app *fiber.App) {
 	app.Use(cors.New(cors.Config{
@@ -25,7 +25,7 @@ func Setup(app *fiber.App) {
 		log.Println("Dev env detected. Serving docs")
 	}
 
-	api := app.Group("/api/" + apiVersion)
+	api := app.Group("/api/" + API_VERSION)
 
 	api.Get("/status", func(c fiber.Ctx) error { return c.SendStatus(200) })
 
@@ -35,5 +35,6 @@ func Setup(app *fiber.App) {
 	registerUserRoutes(guarded)
 	registerOrganizationRoutes(guarded)
 	registerProjectRoutes(guarded)
+	registerEnvironmentRoutes(guarded)
 	registerFlagRoutes(guarded)
 }

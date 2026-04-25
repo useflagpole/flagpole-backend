@@ -11,8 +11,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-const internalOrgName = "Flagpole"
-
 type orgRequest struct {
 	Name string `json:"name"`
 }
@@ -26,12 +24,7 @@ func isInternalUser(c fiber.Ctx) bool {
 	if !ok {
 		return false
 	}
-	for _, name := range orgNames {
-		if name == internalOrgName {
-			return true
-		}
-	}
-	return false
+	return controllers.IsInternalUser(orgNames)
 }
 
 // ListOrganizations godoc
@@ -74,7 +67,7 @@ func GetOrganization(c fiber.Ctx) (int, response.APIResponse) {
 		return fiber.StatusNotFound, response.ErrorResponse{Error: "organization not found"}
 	}
 
-	if org.Name == internalOrgName && !isInternalUser(c) {
+	if controllers.IsInternalOrg(org.Name) && !isInternalUser(c) {
 		return fiber.StatusNotFound, response.ErrorResponse{Error: "organization not found"}
 	}
 
@@ -99,15 +92,15 @@ func CreateOrganization(c fiber.Ctx) (int, response.APIResponse) {
 	if req.Name == "" {
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: "name is required"}
 	}
-	if req.Name == internalOrgName {
-		return fiber.StatusBadRequest, response.ErrorResponse{Error: "invalid organization name"}
-	}
 
 	org, err := controllers.CreateOrganization(req.Name, jwtutil.UserID(c))
-	if err == controllers.ErrOrgLimitReached {
+	switch err {
+	case nil:
+	case controllers.ErrReservedOrgName:
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: err.Error()}
+	case controllers.ErrOrgLimitReached:
 		return fiber.StatusForbidden, response.ErrOrgLimitReached
-	}
-	if err != nil {
+	default:
 		return fiber.StatusInternalServerError, response.Error500
 	}
 
@@ -174,7 +167,7 @@ func UpdateOrganization(c fiber.Ctx) (int, response.APIResponse) {
 		return fiber.StatusNotFound, response.ErrorResponse{Error: "organization not found"}
 	}
 
-	if org.Name == internalOrgName && !isInternalUser(c) {
+	if controllers.IsInternalOrg(org.Name) && !isInternalUser(c) {
 		return fiber.StatusNotFound, response.ErrorResponse{Error: "organization not found"}
 	}
 
@@ -186,12 +179,12 @@ func UpdateOrganization(c fiber.Ctx) (int, response.APIResponse) {
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: "name is required"}
 	}
 
-	org.Name = req.Name
-	if err := dal.Organization.Save(org); err != nil {
+	updated, err := controllers.UpdateOrganization(org, req.Name)
+	if err != nil {
 		return fiber.StatusInternalServerError, response.Error500
 	}
 
-	return fiber.StatusOK, response.DataResponse{Data: org}
+	return fiber.StatusOK, response.DataResponse{Data: updated}
 }
 
 // DeleteOrganization godoc
@@ -213,11 +206,11 @@ func DeleteOrganization(c fiber.Ctx) (int, response.APIResponse) {
 		return fiber.StatusNotFound, response.ErrorResponse{Error: "organization not found"}
 	}
 
-	if org.Name == internalOrgName && !isInternalUser(c) {
+	if controllers.IsInternalOrg(org.Name) && !isInternalUser(c) {
 		return fiber.StatusNotFound, response.ErrorResponse{Error: "organization not found"}
 	}
 
-	if err := dal.Organization.Delete(org); err != nil {
+	if err := controllers.DeleteOrganization(org); err != nil {
 		return fiber.StatusInternalServerError, response.Error500
 	}
 

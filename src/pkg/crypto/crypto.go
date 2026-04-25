@@ -7,8 +7,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const saltBytes = 16
-const bcryptRounds = 12
+const SALT_BYTES = 16
+const BCRYPT_ROUNDS = 12
 
 func GenerateRandomPassword(length int) (string, error) {
 	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -23,7 +23,7 @@ func GenerateRandomPassword(length int) (string, error) {
 }
 
 func GenerateSalt() (string, error) {
-	b := make([]byte, saltBytes)
+	b := make([]byte, SALT_BYTES)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
@@ -31,7 +31,7 @@ func GenerateSalt() (string, error) {
 }
 
 func HashPassword(password, salt string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(salt+password), bcryptRounds)
+	hash, err := bcrypt.GenerateFromPassword([]byte(salt+password), BCRYPT_ROUNDS)
 	if err != nil {
 		return "", err
 	}

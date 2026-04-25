@@ -3,14 +3,10 @@ package handlers
 import (
 	"strings"
 
-	"flagpole/src/config"
 	"flagpole/src/controllers"
-	"flagpole/src/dal"
 	"flagpole/src/pkg/response"
-	"time"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/golang-jwt/jwt/v5"
 )
 
 type signupRequest struct {
@@ -86,30 +82,7 @@ func Login(c fiber.Ctx) (int, response.APIResponse) {
 		return fiber.StatusUnauthorized, response.ErrInvalidCredentials
 	}
 
-	role, err := dal.Role.GetByID(user.RoleID)
-	if err != nil {
-		return fiber.StatusInternalServerError, response.Error500
-	}
-
-	orgIDs := make([]uint, len(user.Organizations))
-	orgNames := make([]string, len(user.Organizations))
-	for i, org := range user.Organizations {
-		orgIDs[i] = org.ID
-		orgNames[i] = org.Name
-	}
-
-	claims := jwt.MapClaims{
-		"userId":    user.ID,
-		"firstName": user.FirstName,
-		"lastName":  user.LastName,
-		"email":     user.Email,
-		"role":      role.Name,
-		"orgIds":    orgIDs,
-		"orgNames":  orgNames,
-		"exp":       time.Now().Add(24 * time.Hour).Unix(),
-	}
-
-	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(config.Get().JWTSecret))
+	token, err := controllers.GenerateToken(user)
 	if err != nil {
 		return fiber.StatusInternalServerError, response.Error500
 	}
