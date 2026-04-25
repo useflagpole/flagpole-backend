@@ -13,6 +13,16 @@ import (
 )
 
 var ErrOrgLimitReached = errors.New("organization limit reached")
+var ErrInvalidPlan    = errors.New("invalid plan")
+
+const AllowedPlan = "free"
+
+func SetOrganizationPlan(orgID uint, plan string) error {
+	if plan != AllowedPlan {
+		return ErrInvalidPlan
+	}
+	return dal.Organization.SetPlan(orgID, plan)
+}
 
 const MaxOrgsPerUser = 1
 
@@ -26,6 +36,12 @@ func CreateOrganization(name string, userID uuid.UUID) (*models.Organization, er
 		return nil, ErrOrgLimitReached
 	}
 
+	adminRole, err := dal.Role.GetByName("admin")
+	if err != nil {
+		log.Printf("CreateOrganization: admin role lookup failed: %v", err)
+		return nil, errors.New("internal error")
+	}
+
 	var org *models.Organization
 
 	err = database.DB.Transaction(func(tx *gorm.DB) error {
@@ -36,6 +52,7 @@ func CreateOrganization(name string, userID uuid.UUID) (*models.Organization, er
 		return tx.Create(&models.UserOrganization{
 			OrganizationID: org.ID,
 			UserID:         userID,
+			RoleID:         adminRole.ID,
 		}).Error
 	})
 	if err != nil {

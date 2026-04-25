@@ -51,6 +51,18 @@ func (organizationDAL) ListByUser(userID uuid.UUID) ([]models.Organization, erro
 	return orgs, nil
 }
 
+func (organizationDAL) SetPlan(orgID uint, plan string) error {
+	return database.DB.Model(&models.Organization{}).Where("id = ?", orgID).Update("plan", plan).Error
+}
+
+func (organizationDAL) IsMember(orgID uint, userID uuid.UUID) bool {
+	var count int64
+	database.DB.Model(&models.UserOrganization{}).
+		Where("organization_id = ? AND user_id = ?", orgID, userID).
+		Count(&count)
+	return count > 0
+}
+
 func (organizationDAL) AddUser(orgID uint, userID uuid.UUID) error {
 	return database.DB.Create(&models.UserOrganization{
 		OrganizationID: orgID,

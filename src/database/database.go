@@ -29,12 +29,36 @@ func migrate() {
 	if err := DB.Exec("CREATE SCHEMA IF NOT EXISTS auth").Error; err != nil {
 		log.Fatalf("failed to create auth schema: %v", err)
 	}
-	if err := DB.AutoMigrate(&models.Role{}, &models.Organization{}, &models.User{}, &models.UserOrganization{}, &models.FeatureFlag{}); err != nil {
+	backfillOrganizationOwner()
+	backfillUserOrgRole()
+	if err := DB.AutoMigrate(&models.Role{}, &models.Organization{}, &models.User{}, &models.UserOrganization{}, &models.Project{}, &models.FeatureFlag{}); err != nil {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 	dropLegacyColumns()
 	ensureOwnerMembershipTrigger()
 	log.Println("Migrations applied")
+}
+
+func backfillOrganizationOwner() {
+	if DB.Migrator().HasColumn(&models.Organization{}, "owner_id") {
+		return
+	}
+
+	steps := []string{
+		`ALTER TABLE auth.organizations ADD COLUMN owner_id uuid`,
+		`UPDATE auth.organizations
+		 SET owner_id = (SELECT id FROM auth.users WHERE email = 'admin@flagpole.dev')
+		 WHERE owner_id IS NULL`,
+		`ALTER TABLE auth.organizations ALTER COLUMN owner_id SET NOT NULL`,
+	}
+
+	for _, stmt := range steps {
+		if err := DB.Exec(stmt).Error; err != nil {
+			log.Fatalf("backfillOrganizationOwner: %v", err)
+		}
+	}
+
+	log.Println("Backfilled organizations.owner_id from admin user")
 }
 
 func ensureOwnerMembershipTrigger() {
@@ -66,6 +90,28 @@ func ensureOwnerMembershipTrigger() {
 			log.Fatalf("failed to create owner membership trigger: %v", err)
 		}
 	}
+}
+
+func backfillUserOrgRole() {
+	if DB.Migrator().HasColumn(&models.UserOrganization{}, "role_id") {
+		return
+	}
+
+	steps := []string{
+		`ALTER TABLE auth.user_organizations ADD COLUMN role_id bigint`,
+		`UPDATE auth.user_organizations
+		 SET role_id = (SELECT id FROM auth.roles WHERE name = 'viewer')
+		 WHERE role_id IS NULL`,
+		`ALTER TABLE auth.user_organizations ALTER COLUMN role_id SET NOT NULL`,
+	}
+
+	for _, stmt := range steps {
+		if err := DB.Exec(stmt).Error; err != nil {
+			log.Fatalf("backfillUserOrgRole: %v", err)
+		}
+	}
+
+	log.Println("Backfilled user_organizations.role_id to viewer")
 }
 
 func dropLegacyColumns() {

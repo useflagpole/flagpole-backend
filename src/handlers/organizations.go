@@ -17,6 +17,10 @@ type orgRequest struct {
 	Name string `json:"name"`
 }
 
+type planRequest struct {
+	Plan string `json:"plan"`
+}
+
 func isInternalUser(c fiber.Ctx) bool {
 	orgNames, ok := jwtutil.Claims(c)["orgNames"].([]interface{})
 	if !ok {
@@ -108,6 +112,44 @@ func CreateOrganization(c fiber.Ctx) (int, response.APIResponse) {
 	}
 
 	return fiber.StatusCreated, response.DataResponse{Data: org}
+}
+
+// SetOrganizationPlan godoc
+// @Summary      Set an organization's plan
+// @Tags         Organizations
+// @Accept       json
+// @Produce      json
+// @Param        id   path int        true "Organization ID"
+// @Param        body body planRequest true "Plan"
+// @Success      200 {object} response.DataResponse
+// @Failure      400 {object} response.ErrorResponse
+// @Failure      404 {object} response.ErrorResponse
+// @Router       /organizations/{id}/plan [patch]
+func SetOrganizationPlan(c fiber.Ctx) (int, response.APIResponse) {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "invalid id"}
+	}
+
+	if _, err := dal.Organization.GetByID(uint(id)); err != nil {
+		return fiber.StatusNotFound, response.ErrorResponse{Error: "organization not found"}
+	}
+
+	var req planRequest
+	if err := c.Bind().JSON(&req); err != nil {
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "couldn't parse body"}
+	}
+	if req.Plan == "" {
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "plan is required"}
+	}
+
+	if err := controllers.SetOrganizationPlan(uint(id), req.Plan); err == controllers.ErrInvalidPlan {
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "invalid plan"}
+	} else if err != nil {
+		return fiber.StatusInternalServerError, response.Error500
+	}
+
+	return fiber.StatusOK, response.DataResponse{Data: fiber.Map{"plan": req.Plan}}
 }
 
 // UpdateOrganization godoc

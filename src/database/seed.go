@@ -84,6 +84,7 @@ func seedAdmin() {
 		return tx.Create(&models.UserOrganization{
 			OrganizationID: org.ID,
 			UserID:         admin.ID,
+			RoleID:         adminRole.ID,
 		}).Error
 	})
 	if err != nil {

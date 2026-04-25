@@ -34,5 +34,6 @@ func Setup(app *fiber.App) {
 	guarded := api.Group("/", middleware.Auth)
 	registerUserRoutes(guarded)
 	registerOrganizationRoutes(guarded)
+	registerProjectRoutes(guarded)
 	registerFlagRoutes(guarded)
 }

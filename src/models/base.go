@@ -7,8 +7,8 @@ import (
 )
 
 type Base struct {
-	ID        uint           `gorm:"primaryKey;autoIncrement"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	ID        uint           `gorm:"primaryKey;autoIncrement" json:"id"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index"                   json:"-"`
 }
