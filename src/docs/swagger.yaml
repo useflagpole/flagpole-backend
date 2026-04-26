@@ -7,9 +7,9 @@ definitions:
     type: object
   handlers.flagCreateRequest:
     properties:
-      key:
+      description:
         type: string
-      name:
+      key:
         type: string
       type:
         type: string
@@ -17,10 +17,10 @@ definitions:
     type: object
   handlers.flagUpdateRequest:
     properties:
+      description:
+        type: string
       enabled:
         type: boolean
-      name:
-        type: string
       value: {}
     type: object
   handlers.loginRequest:
@@ -238,6 +238,62 @@ paths:
       summary: Update an organization
       tags:
       - Organizations
+  /organizations/{id}/audit:
+    get:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: List audit log entries for an organization
+      tags:
+      - Audit
+  /organizations/{id}/members:
+    get:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: List members of an organization with their roles
+      tags:
+      - Organizations
   /organizations/{id}/plan:
     patch:
       consumes:
@@ -386,6 +442,76 @@ paths:
       summary: Rename a project
       tags:
       - Projects
+  /organizations/{org_id}/projects/{project_id}/archive:
+    post:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Archive a project
+      tags:
+      - Projects
+  /organizations/{org_id}/projects/{project_id}/audit:
+    get:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: List audit log entries for a project
+      tags:
+      - Audit
   /organizations/{org_id}/projects/{project_id}/environments:
     get:
       parameters:
@@ -767,6 +893,45 @@ paths:
       summary: Update a feature flag (name, value, enabled)
       tags:
       - Flags
+  /organizations/{org_id}/projects/{project_id}/unarchive:
+    post:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Unarchive a project
+      tags:
+      - Projects
   /signup:
     post:
       consumes:
