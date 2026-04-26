@@ -3,8 +3,6 @@ package models
 import (
 	"encoding/json"
 	"errors"
-
-	"gorm.io/gorm"
 )
 
 type FlagType string
@@ -15,24 +13,33 @@ const (
 	FLAG_TYPE_NUMBER FlagType = "number"
 )
 
+const FLAG_STRING_MAX_LEN = 50
+
+type FeatureFlag struct {
+	Base
+	ProjectID uint   `gorm:"not null;uniqueIndex:idx_flag_key_project"   json:"projectId"`
+	Key       string `gorm:"not null;uniqueIndex:idx_flag_key_project"   json:"key"`
+	Name      string `gorm:"not null"                                    json:"name"`
+	FlagType  string `gorm:"not null"                                    json:"type"`
+	RawValue  string `gorm:"not null"                                    json:"-"`
+	Enabled   bool   `gorm:"not null;default:true"                       json:"enabled"`
+}
+
+func (FeatureFlag) TableName() string {
+	return "auth.feature_flags"
+}
+
 type FlagValue struct {
 	Type  FlagType    `json:"type"`
 	Value interface{} `json:"value"`
 }
 
-type FeatureFlag struct {
-	gorm.Model
-	Name     string `gorm:"uniqueIndex;not null"`
-	FlagType string `gorm:"not null"`
-	RawValue string `gorm:"not null"`
-}
-
-func (f FeatureFlag) ToFlagValue() (FlagValue, error) {
+func (f FeatureFlag) ParsedValue() (interface{}, error) {
 	var val interface{}
 	if err := json.Unmarshal([]byte(f.RawValue), &val); err != nil {
-		return FlagValue{}, err
+		return nil, err
 	}
-	return FlagValue{Type: FlagType(f.FlagType), Value: val}, nil
+	return val, nil
 }
 
 func ValidateValue(flagType FlagType, value interface{}) error {
@@ -42,15 +49,19 @@ func ValidateValue(flagType FlagType, value interface{}) error {
 			return errors.New("value must be a boolean")
 		}
 	case FLAG_TYPE_STRING:
-		if _, ok := value.(string); !ok {
+		s, ok := value.(string)
+		if !ok {
 			return errors.New("value must be a string")
+		}
+		if len(s) > FLAG_STRING_MAX_LEN {
+			return errors.New("string value exceeds 50 characters")
 		}
 	case FLAG_TYPE_NUMBER:
 		if _, ok := value.(float64); !ok {
 			return errors.New("value must be a number")
 		}
 	default:
-		return errors.New("invalid flag type, must be bool, string, or number")
+		return errors.New("invalid flag type: must be bool, string, or number")
 	}
 	return nil
 }

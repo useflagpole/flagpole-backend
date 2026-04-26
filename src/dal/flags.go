@@ -9,28 +9,41 @@ type featureFlagDAL struct{}
 
 var FeatureFlag = featureFlagDAL{}
 
-func (featureFlagDAL) Create(name, flagType, rawValue string) error {
-	return database.DB.Create(&models.FeatureFlag{Name: name, FlagType: flagType, RawValue: rawValue}).Error
+func (featureFlagDAL) ListByProject(projectID uint) ([]models.FeatureFlag, error) {
+	var flags []models.FeatureFlag
+	err := database.DB.Where("project_id = ?", projectID).Find(&flags).Error
+	return flags, err
 }
 
-func (featureFlagDAL) FindByName(name string) (models.FeatureFlag, error) {
+func (featureFlagDAL) GetByID(id uint, projectID uint) (*models.FeatureFlag, error) {
 	var flag models.FeatureFlag
-	err := database.DB.Where("name = ?", name).First(&flag).Error
-	return flag, err
+	err := database.DB.Where("id = ? AND project_id = ?", id, projectID).First(&flag).Error
+	if err != nil {
+		return nil, err
+	}
+	return &flag, nil
 }
 
-func (featureFlagDAL) UpdateValue(flag *models.FeatureFlag, rawValue string) error {
-	return database.DB.Model(flag).Update("raw_value", rawValue).Error
+func (featureFlagDAL) CountByProject(projectID uint) (int64, error) {
+	var count int64
+	err := database.DB.Model(&models.FeatureFlag{}).Where("project_id = ?", projectID).Count(&count).Error
+	return count, err
 }
 
-func (featureFlagDAL) FindAll() ([]models.FeatureFlag, error) {
-	var flags []models.FeatureFlag
-	err := database.DB.Find(&flags).Error
-	return flags, err
+func (featureFlagDAL) KeyExists(projectID uint, key string) bool {
+	var count int64
+	database.DB.Model(&models.FeatureFlag{}).Where("project_id = ? AND key = ?", projectID, key).Count(&count)
+	return count > 0
 }
 
-func (featureFlagDAL) FindByNames(names []string) ([]models.FeatureFlag, error) {
-	var flags []models.FeatureFlag
-	err := database.DB.Where("name IN ?", names).Find(&flags).Error
-	return flags, err
+func (featureFlagDAL) Create(flag *models.FeatureFlag) error {
+	return database.DB.Create(flag).Error
+}
+
+func (featureFlagDAL) Save(flag *models.FeatureFlag) error {
+	return database.DB.Save(flag).Error
+}
+
+func (featureFlagDAL) Delete(flag *models.FeatureFlag) error {
+	return database.DB.Delete(flag).Error
 }

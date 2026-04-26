@@ -11,8 +11,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// ListUserOrganizations godoc
-// @Summary      List organizations for a user
+// GetUser godoc
+// @Summary      Get current user profile
 // @Tags         Users
 // @Produce      json
 // @Param        user_id path string true "User ID"
@@ -20,7 +20,7 @@ import (
 // @Failure      400 {object} response.ErrorResponse
 // @Failure      403 {object} response.ErrorResponse
 // @Failure      500 {object} response.ErrorResponse
-// @Router       /users/{user_id}/organizations [get]
+// @Router       /users/{user_id} [get]
 func GetUser(c fiber.Ctx) (int, response.APIResponse) {
 	paramID, err := uuid.Parse(c.Params("user_id"))
 	if err != nil {
@@ -38,6 +38,16 @@ func GetUser(c fiber.Ctx) (int, response.APIResponse) {
 	return fiber.StatusOK, response.DataResponse{Data: dto}
 }
 
+// ListUserOrganizations godoc
+// @Summary      List organizations for a user
+// @Tags         Users
+// @Produce      json
+// @Param        user_id path string true "User ID"
+// @Success      200 {object} response.DataResponse
+// @Failure      400 {object} response.ErrorResponse
+// @Failure      403 {object} response.ErrorResponse
+// @Failure      500 {object} response.ErrorResponse
+// @Router       /users/{user_id}/organizations [get]
 func ListUserOrganizations(c fiber.Ctx) (int, response.APIResponse) {
 	paramID, err := uuid.Parse(c.Params("user_id"))
 	if err != nil {
@@ -56,6 +66,19 @@ func ListUserOrganizations(c fiber.Ctx) (int, response.APIResponse) {
 	return fiber.StatusOK, response.DataResponse{Data: orgs}
 }
 
+// UpdateUsername godoc
+// @Summary      Update username for a user
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        user_id path string true "User ID"
+// @Param        body body object true "Username payload"
+// @Success      200 {object} response.DataResponse
+// @Failure      400 {object} response.ErrorResponse
+// @Failure      403 {object} response.ErrorResponse
+// @Failure      409 {object} response.ConflictResponse
+// @Failure      500 {object} response.ErrorResponse
+// @Router       /users/{user_id}/username [patch]
 func UpdateUsername(c fiber.Ctx) (int, response.APIResponse) {
 	paramID, err := uuid.Parse(c.Params("user_id"))
 	if err != nil {

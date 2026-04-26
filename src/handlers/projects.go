@@ -90,6 +90,20 @@ func CreateProject(c fiber.Ctx) (int, response.APIResponse) {
 	return fiber.StatusCreated, response.DataResponse{Data: project}
 }
 
+// UpdateProject godoc
+// @Summary      Rename a project
+// @Tags         Projects
+// @Accept       json
+// @Produce      json
+// @Param        org_id     path int true "Organization ID"
+// @Param        project_id path int true "Project ID"
+// @Param        body       body projectRequest true "Project data"
+// @Success      200 {object} response.DataResponse
+// @Failure      400 {object} response.ErrorResponse
+// @Failure      403 {object} response.ErrorResponse
+// @Failure      404 {object} response.ErrorResponse
+// @Failure      500 {object} response.ErrorResponse
+// @Router       /organizations/{org_id}/projects/{project_id} [patch]
 func UpdateProject(c fiber.Ctx) (int, response.APIResponse) {
 	proj, status, errResp := resolveProject(c)
 	if errResp != nil {

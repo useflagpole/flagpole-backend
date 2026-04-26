@@ -20,15 +20,20 @@ type planRequest struct {
 }
 
 func isInternalUser(c fiber.Ctx) bool {
-	orgNames, ok := jwtutil.Claims(c)["orgNames"].([]interface{})
-	if !ok {
+	orgs, err := dal.Organization.ListByUser(jwtutil.UserID(c))
+	if err != nil {
 		return false
 	}
-	return controllers.IsInternalUser(orgNames)
+	for _, o := range orgs {
+		if controllers.IsInternalOrg(o.Name) {
+			return true
+		}
+	}
+	return false
 }
 
 // ListOrganizations godoc
-// @Summary      List all organizations
+// @Summary      List all organizations, can only be accessed by internal users
 // @Tags         Organizations
 // @Produce      json
 // @Success      200 {object} response.DataResponse
@@ -67,8 +72,9 @@ func GetOrganization(c fiber.Ctx) (int, response.APIResponse) {
 		return fiber.StatusNotFound, response.ErrorResponse{Error: "organization not found"}
 	}
 
-	if controllers.IsInternalOrg(org.Name) && !isInternalUser(c) {
-		return fiber.StatusNotFound, response.ErrorResponse{Error: "organization not found"}
+	isMember := dal.Organization.IsMember(uint(id), jwtutil.UserID(c))
+	if !isMember && !isInternalUser(c) {
+		return fiber.StatusForbidden, response.ErrorResponse{Error: "forbidden"}
 	}
 
 	return fiber.StatusOK, response.DataResponse{Data: org}

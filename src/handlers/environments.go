@@ -64,6 +64,17 @@ func envErr(err error) (int, response.APIResponse) {
 	}
 }
 
+// ListEnvironments godoc
+// @Summary      List environments for a project
+// @Tags         Environments
+// @Produce      json
+// @Param        org_id     path int true "Organization ID"
+// @Param        project_id path int true "Project ID"
+// @Success      200 {object} response.DataResponse
+// @Failure      400 {object} response.ErrorResponse
+// @Failure      403 {object} response.ErrorResponse
+// @Failure      404 {object} response.ErrorResponse
+// @Router       /organizations/{org_id}/projects/{project_id}/environments [get]
 func ListEnvironments(c fiber.Ctx) (int, response.APIResponse) {
 	proj, status, errResp := resolveProject(c)
 	if errResp != nil {
@@ -76,6 +87,21 @@ func ListEnvironments(c fiber.Ctx) (int, response.APIResponse) {
 	return fiber.StatusOK, response.DataResponse{Data: envs}
 }
 
+// CreateEnvironment godoc
+// @Summary      Create an environment in a project
+// @Tags         Environments
+// @Accept       json
+// @Produce      json
+// @Param        org_id     path int true "Organization ID"
+// @Param        project_id path int true "Project ID"
+// @Param        body       body envNameRequest true "Environment name"
+// @Success      201 {object} response.DataResponse
+// @Failure      400 {object} response.ErrorResponse
+// @Failure      403 {object} response.ErrorResponse
+// @Failure      404 {object} response.ErrorResponse
+// @Failure      409 {object} response.ErrorResponse
+// @Failure      422 {object} response.ErrorResponse
+// @Router       /organizations/{org_id}/projects/{project_id}/environments [post]
 func CreateEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 	proj, status, errResp := resolveProject(c)
 	if errResp != nil {
@@ -92,6 +118,20 @@ func CreateEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 	return fiber.StatusCreated, response.DataResponse{Data: envs}
 }
 
+// RenameEnvironment godoc
+// @Summary      Rename an environment
+// @Tags         Environments
+// @Accept       json
+// @Produce      json
+// @Param        org_id     path int    true "Organization ID"
+// @Param        project_id path int    true "Project ID"
+// @Param        env_name   path string true "Current environment name"
+// @Param        body       body envNameRequest true "New name"
+// @Success      200 {object} response.DataResponse
+// @Failure      400 {object} response.ErrorResponse
+// @Failure      403 {object} response.ErrorResponse
+// @Failure      404 {object} response.ErrorResponse
+// @Router       /organizations/{org_id}/projects/{project_id}/environments/{env_name} [patch]
 func RenameEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 	proj, status, errResp := resolveProject(c)
 	if errResp != nil {
@@ -108,6 +148,18 @@ func RenameEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 	return fiber.StatusOK, response.DataResponse{Data: envs}
 }
 
+// DeleteEnvironment godoc
+// @Summary      Delete an environment
+// @Tags         Environments
+// @Produce      json
+// @Param        org_id     path int    true "Organization ID"
+// @Param        project_id path int    true "Project ID"
+// @Param        env_name   path string true "Environment name"
+// @Success      200 {object} response.DataResponse
+// @Failure      400 {object} response.ErrorResponse
+// @Failure      403 {object} response.ErrorResponse
+// @Failure      404 {object} response.ErrorResponse
+// @Router       /organizations/{org_id}/projects/{project_id}/environments/{env_name} [delete]
 func DeleteEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 	proj, status, errResp := resolveProject(c)
 	if errResp != nil {

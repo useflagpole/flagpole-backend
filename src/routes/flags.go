@@ -8,8 +8,10 @@ import (
 )
 
 func registerFlagRoutes(api fiber.Router) {
-	api.Post("/flags/evaluate", response.Wrap(handlers.EvaluateFlags))
-	api.Post("/flag", response.Wrap(handlers.AddFlag))
-	api.Get("/flag/:flagname", response.Wrap(handlers.GetFlag))
-	api.Put("/flag/:flagname", response.Wrap(handlers.SetFlag))
+	proj := "/organizations/:org_id/projects/:project_id"
+	api.Get(proj+"/flags", response.Wrap(handlers.ListFlags))
+	api.Post(proj+"/flags", response.Wrap(handlers.CreateFlag))
+	api.Get(proj+"/flags/:flag_id", response.Wrap(handlers.GetFlag))
+	api.Patch(proj+"/flags/:flag_id", response.Wrap(handlers.UpdateFlag))
+	api.Delete(proj+"/flags/:flag_id", response.Wrap(handlers.DeleteFlag))
 }

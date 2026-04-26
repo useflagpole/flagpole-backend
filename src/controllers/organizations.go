@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const INTERNAL_ORG_NAME = "Flagpole"
+const INTERNAL_ORG_NAME = "flagpole"
 const ALLOWED_PLAN     = "free"
 const MAX_ORGS_PER_USER  = 1
 
