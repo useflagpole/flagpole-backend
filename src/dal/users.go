@@ -28,6 +28,23 @@ func (userDAL) EmailExists(email string) bool {
 	return database.DB.Where("email = ?", email).First(&user).Error == nil
 }
 
+func (userDAL) UsernameExists(username string) bool {
+	var user models.User
+	return database.DB.Where("username = ?", username).First(&user).Error == nil
+}
+
+func (userDAL) GetByID(id uuid.UUID) (*models.User, error) {
+	var user models.User
+	if err := database.DB.Where("id = ?", id).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (userDAL) UpdateUsername(id uuid.UUID, username string) error {
+	return database.DB.Model(&models.User{}).Where("id = ?", id).Update("username", username).Error
+}
+
 func (userDAL) CountOrganizations(userID uuid.UUID) (int64, error) {
 	var count int64
 	err := database.DB.Model(&models.UserOrganization{}).Where("user_id = ?", userID).Count(&count).Error

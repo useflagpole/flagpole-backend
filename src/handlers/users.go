@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"strings"
+
 	"flagpole/src/controllers"
 	"flagpole/src/pkg/jwtutil"
 	"flagpole/src/pkg/response"
@@ -35,4 +37,34 @@ func ListUserOrganizations(c fiber.Ctx) (int, response.APIResponse) {
 	}
 
 	return fiber.StatusOK, response.DataResponse{Data: orgs}
+}
+
+func UpdateUsername(c fiber.Ctx) (int, response.APIResponse) {
+	paramID, err := uuid.Parse(c.Params("user_id"))
+	if err != nil {
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "invalid user id"}
+	}
+	if paramID != jwtutil.UserID(c) {
+		return fiber.StatusForbidden, response.ErrorResponse{Error: "forbidden"}
+	}
+
+	var body struct {
+		Username string `json:"username"`
+	}
+	if err := c.Bind().JSON(&body); err != nil {
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "couldn't parse body"}
+	}
+	body.Username = strings.TrimSpace(body.Username)
+	if body.Username == "" {
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "username is required"}
+	}
+
+	if err := controllers.UpdateUsername(paramID, body.Username); err != nil {
+		if err == controllers.ErrUsernameTaken {
+			return fiber.StatusConflict, response.ConflictResponse{Fields: []string{"username"}}
+		}
+		return fiber.StatusInternalServerError, response.Error500
+	}
+
+	return fiber.StatusOK, response.DataResponse{Data: fiber.Map{"username": body.Username}}
 }

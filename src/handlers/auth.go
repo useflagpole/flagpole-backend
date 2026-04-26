@@ -11,6 +11,7 @@ import (
 
 type signupRequest struct {
 	Email     string `json:"email"`
+	Username  string `json:"username"`
 	FirstName string `json:"firstName"`
 	LastName  string `json:"lastName"`
 	Password  string `json:"password"`
@@ -37,17 +38,21 @@ func Signup(c fiber.Ctx) (int, response.APIResponse) {
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: "couldn't parse body"}
 	}
 
-	req.Email = strings.TrimSpace(req.Email)
+	req.Email     = strings.TrimSpace(req.Email)
+	req.Username  = strings.TrimSpace(req.Username)
 	req.FirstName = strings.TrimSpace(req.FirstName)
-	req.LastName = strings.TrimSpace(req.LastName)
+	req.LastName  = strings.TrimSpace(req.LastName)
 
-	if req.Email == "" || req.Password == "" || req.FirstName == "" || req.LastName == "" {
-		return fiber.StatusBadRequest, response.ErrorResponse{Error: "email, firstName, lastName and password are required"}
+	if req.Email == "" || req.Username == "" || req.Password == "" || req.FirstName == "" || req.LastName == "" {
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "email, username, firstName, lastName and password are required"}
 	}
 
-	if _, err := controllers.RegisterUser(req.Email, req.FirstName, req.LastName, req.Password); err != nil {
-		if err == controllers.ErrEmailAlreadyRegistered {
-			return fiber.StatusConflict, response.ErrEmailTaken
+	if _, err := controllers.RegisterUser(req.Email, req.Username, req.FirstName, req.LastName, req.Password); err != nil {
+		if conflict, ok := err.(*controllers.RegistrationConflict); ok {
+			var fields []string
+			if conflict.EmailTaken    { fields = append(fields, "email") }
+			if conflict.UsernameTaken { fields = append(fields, "username") }
+			return fiber.StatusConflict, response.ConflictResponse{Fields: fields}
 		}
 		return fiber.StatusInternalServerError, response.Error500
 	}

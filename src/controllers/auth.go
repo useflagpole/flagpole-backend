@@ -27,6 +27,7 @@ func GenerateToken(user *models.User) (string, error) {
 
 	claims := jwt.MapClaims{
 		"userId":    user.ID,
+		"username":  user.Username,
 		"firstName": user.FirstName,
 		"lastName":  user.LastName,
 		"email":     user.Email,

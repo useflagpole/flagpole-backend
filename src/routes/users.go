@@ -10,4 +10,5 @@ import (
 func registerUserRoutes(api fiber.Router) {
 	users := api.Group("/users")
 	users.Get("/:user_id/organizations", response.Wrap(handlers.ListUserOrganizations))
+	users.Patch("/:user_id/username", response.Wrap(handlers.UpdateUsername))
 }

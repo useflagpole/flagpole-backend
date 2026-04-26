@@ -11,12 +11,23 @@ import (
 	"github.com/google/uuid"
 )
 
-var ErrEmailAlreadyRegistered = errors.New("email already registered")
 var ErrInvalidCredentials = errors.New("invalid credentials")
+var ErrUsernameTaken = errors.New("username already taken")
 
-func RegisterUser(email, firstName, lastName, password string) (*models.User, error) {
-	if dal.User.EmailExists(email) {
-		return nil, ErrEmailAlreadyRegistered
+type RegistrationConflict struct {
+	EmailTaken    bool
+	UsernameTaken bool
+}
+
+func (e *RegistrationConflict) Error() string { return "registration conflict" }
+
+func RegisterUser(email, username, firstName, lastName, password string) (*models.User, error) {
+	conflict := &RegistrationConflict{
+		EmailTaken:    dal.User.EmailExists(email),
+		UsernameTaken: dal.User.UsernameExists(username),
+	}
+	if conflict.EmailTaken || conflict.UsernameTaken {
+		return nil, conflict
 	}
 
 	viewerRole, err := dal.Role.GetByName("viewer")
@@ -37,6 +48,7 @@ func RegisterUser(email, firstName, lastName, password string) (*models.User, er
 
 	user := &models.User{
 		Email:     email,
+		Username:  username,
 		FirstName: firstName,
 		LastName:  lastName,
 		PwdHash:   hash,
@@ -49,6 +61,13 @@ func RegisterUser(email, firstName, lastName, password string) (*models.User, er
 	}
 
 	return user, nil
+}
+
+func UpdateUsername(userID uuid.UUID, username string) error {
+	if dal.User.UsernameExists(username) {
+		return ErrUsernameTaken
+	}
+	return dal.User.UpdateUsername(userID, username)
 }
 
 func GetUserOrganizations(userID uuid.UUID) ([]models.Organization, error) {

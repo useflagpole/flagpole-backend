@@ -31,6 +31,7 @@ func migrate() {
 	}
 	backfillOrganizationOwner()
 	backfillUserOrgRole()
+	backfillUsername()
 	if err := DB.AutoMigrate(&models.Role{}, &models.Organization{}, &models.User{}, &models.UserOrganization{}, &models.Project{}, &models.FeatureFlag{}); err != nil {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
@@ -112,6 +113,29 @@ func backfillUserOrgRole() {
 	}
 
 	log.Println("Backfilled user_organizations.role_id to viewer")
+}
+
+func backfillUsername() {
+	if DB.Migrator().HasColumn(&models.User{}, "username") {
+		return
+	}
+
+	steps := []string{
+		`ALTER TABLE auth.users ADD COLUMN username text`,
+		`UPDATE auth.users
+		 SET username = lower(regexp_replace(first_name || last_name || '_' || substr(id::text, 1, 6), '[^a-z0-9_]', '', 'g'))
+		 WHERE username IS NULL`,
+		`ALTER TABLE auth.users ALTER COLUMN username SET NOT NULL`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON auth.users(username)`,
+	}
+
+	for _, stmt := range steps {
+		if err := DB.Exec(stmt).Error; err != nil {
+			log.Fatalf("backfillUsername: %v", err)
+		}
+	}
+
+	log.Println("Backfilled auth.users.username")
 }
 
 func dropLegacyColumns() {

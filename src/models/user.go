@@ -9,6 +9,7 @@ type User struct {
 	Base
 	ID            uuid.UUID      `gorm:"type:uuid;primaryKey"`
 	Email         string         `gorm:"uniqueIndex;not null"`
+	Username      string         `gorm:"uniqueIndex;not null"`
 	FirstName     string         `gorm:"not null"`
 	LastName      string         `gorm:"not null"`
 	PwdHash       string         `gorm:"not null"`

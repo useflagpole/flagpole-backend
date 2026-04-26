@@ -12,7 +12,8 @@ import (
 )
 
 type projectRequest struct {
-	Name string `json:"name"`
+	Name         string   `json:"name"`
+	Environments []string `json:"environments"`
 }
 
 // ListProjects godoc
@@ -81,10 +82,26 @@ func CreateProject(c fiber.Ctx) (int, response.APIResponse) {
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: "name is required"}
 	}
 
-	project, err := controllers.CreateProject(req.Name, uint(orgID))
+	project, err := controllers.CreateProject(req.Name, uint(orgID), req.Environments)
 	if err != nil {
 		return fiber.StatusInternalServerError, response.Error500
 	}
 
 	return fiber.StatusCreated, response.DataResponse{Data: project}
+}
+
+func UpdateProject(c fiber.Ctx) (int, response.APIResponse) {
+	proj, status, errResp := resolveProject(c)
+	if errResp != nil {
+		return status, errResp
+	}
+	var req projectRequest
+	if err := c.Bind().JSON(&req); err != nil || req.Name == "" {
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "name is required"}
+	}
+	updated, err := controllers.RenameProject(proj, req.Name)
+	if err != nil {
+		return fiber.StatusInternalServerError, response.Error500
+	}
+	return fiber.StatusOK, response.DataResponse{Data: updated}
 }

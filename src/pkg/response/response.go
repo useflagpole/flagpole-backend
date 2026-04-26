@@ -16,6 +16,12 @@ type ErrorResponse struct {
 
 func (ErrorResponse) isAPIResponse() {}
 
+type ConflictResponse struct {
+	Fields []string `json:"fields"`
+}
+
+func (ConflictResponse) isAPIResponse() {}
+
 var (
 	Error500              = ErrorResponse{Error: "Internal server error"}
 	ErrInvalidCredentials = ErrorResponse{Error: "Invalid credentials"}
