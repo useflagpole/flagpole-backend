@@ -95,6 +95,9 @@ func UpdateProject(c fiber.Ctx) (int, response.APIResponse) {
 	if errResp != nil {
 		return status, errResp
 	}
+	if status, errResp := requireAdmin(proj.OrganizationID, c); errResp != nil {
+		return status, errResp
+	}
 	var req projectRequest
 	if err := c.Bind().JSON(&req); err != nil || req.Name == "" {
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: "name is required"}

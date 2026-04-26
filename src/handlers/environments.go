@@ -17,6 +17,13 @@ type envNameRequest struct {
 	Name string `json:"name"`
 }
 
+func requireAdmin(orgID uint, c fiber.Ctx) (int, response.APIResponse) {
+	if !dal.Organization.IsAdmin(orgID, jwtutil.UserID(c)) {
+		return fiber.StatusForbidden, response.ErrorResponse{Error: "forbidden: admin role required"}
+	}
+	return 0, nil
+}
+
 func resolveProject(c fiber.Ctx) (*models.Project, int, response.APIResponse) {
 	orgID, err := strconv.ParseUint(c.Params("org_id"), 10, 64)
 	if err != nil {

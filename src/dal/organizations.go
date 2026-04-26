@@ -55,6 +55,20 @@ func (organizationDAL) SetPlan(orgID uint, plan string) error {
 	return database.DB.Model(&models.Organization{}).Where("id = ?", orgID).Update("plan", plan).Error
 }
 
+func (organizationDAL) IsAdmin(orgID uint, userID uuid.UUID) bool {
+	var uo models.UserOrganization
+	if err := database.DB.
+		Where("organization_id = ? AND user_id = ?", orgID, userID).
+		First(&uo).Error; err != nil {
+		return false
+	}
+	var role models.Role
+	if err := database.DB.First(&role, uo.RoleID).Error; err != nil {
+		return false
+	}
+	return role.Name == "admin"
+}
+
 func (organizationDAL) IsMember(orgID uint, userID uuid.UUID) bool {
 	var count int64
 	database.DB.Model(&models.UserOrganization{}).
