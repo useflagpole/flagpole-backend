@@ -75,7 +75,7 @@ func seedAdmin() {
 
 	err = DB.Transaction(func(tx *gorm.DB) error {
 		org := models.Organization{
-			Name:    "Flagpole",
+			Name:    "flagpole",
 			OwnerID: admin.ID,
 		}
 		if err := tx.Create(&org).Error; err != nil {

@@ -1,6 +1,6 @@
 # flagpole-server
 
-REST API for the Flagpole feature flag service. Built with Go, Fiber v3, GORM, and PostgreSQL.
+REST API for the flagpole feature flag service. Built with Go, Fiber v3, GORM, and PostgreSQL.
 
 ## Stack
 
@@ -66,7 +66,7 @@ make swag
 
 On first boot, migrations run automatically and the database is seeded with:
 - Roles: `admin`, `editor`, `viewer`
-- Organization: `Flagpole` (internal — invisible to non-internal users)
+- Organization: `flagpole` (internal — invisible to non-internal users)
 - Admin user: `admin@flagpole.dev` — password is randomly generated and printed to stdout
 
 ## API
@@ -94,4 +94,3 @@ Errors:
 1. `POST /login` returns `{ "data": { "token": "<jwt>" } }`
 2. Include the token in subsequent requests: `Authorization: Bearer <token>`
 3. The JWT contains `userId`, `email`, `role`, `orgIds`, and `orgNames`
-

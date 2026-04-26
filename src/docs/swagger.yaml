@@ -1,45 +1,26 @@
 basePath: /api/v1
 definitions:
-  handlers.evaluateRequest:
+  handlers.envNameRequest:
     properties:
-      context:
-        $ref: '#/definitions/handlers.evaluationContext'
-      flags:
-        items:
-          type: string
-        type: array
-    type: object
-  handlers.evaluateResponse:
-    properties:
-      context:
-        $ref: '#/definitions/handlers.evaluationContext'
-      flags:
-        additionalProperties:
-          $ref: '#/definitions/models.FlagValue'
-        type: object
-    type: object
-  handlers.evaluationContext:
-    properties:
-      attributes:
-        additionalProperties: true
-        type: object
-      key:
+      name:
         type: string
     type: object
-  handlers.flagPayload:
+  handlers.flagCreateRequest:
     properties:
-      flagName:
+      key:
+        type: string
+      name:
         type: string
       type:
         type: string
       value: {}
     type: object
-  handlers.flagResponse:
+  handlers.flagUpdateRequest:
     properties:
-      flagName:
+      enabled:
+        type: boolean
+      name:
         type: string
-      type:
-        $ref: '#/definitions/models.FlagType'
       value: {}
     type: object
   handlers.loginRequest:
@@ -54,10 +35,17 @@ definitions:
       name:
         type: string
     type: object
-  handlers.orgResponse:
+  handlers.planRequest:
     properties:
-      id:
-        type: integer
+      plan:
+        type: string
+    type: object
+  handlers.projectRequest:
+    properties:
+      environments:
+        items:
+          type: string
+        type: array
       name:
         type: string
     type: object
@@ -69,135 +57,34 @@ definitions:
         type: string
       lastName:
         type: string
-      orgId:
-        type: integer
       password:
         type: string
+      username:
+        type: string
     type: object
-  models.FlagType:
-    enum:
-    - bool
-    - string
-    - number
-    type: string
-    x-enum-varnames:
-    - FlagTypeBool
-    - FlagTypeString
-    - FlagTypeNumber
-  models.FlagValue:
+  response.ConflictResponse:
     properties:
-      type:
-        $ref: '#/definitions/models.FlagType'
-      value: {}
+      fields:
+        items:
+          type: string
+        type: array
+    type: object
+  response.DataResponse:
+    properties:
+      data: {}
+    type: object
+  response.ErrorResponse:
+    properties:
+      error:
+        type: string
     type: object
 host: localhost:4000
 info:
   contact: {}
   description: Feature flag management API
-  title: Flagpole API
+  title: flagpole API
   version: "1.0"
 paths:
-  /flag:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Flag definition
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.flagPayload'
-      produces:
-      - text/plain
-      responses:
-        "200":
-          description: OK
-        "400":
-          description: bad request
-          schema:
-            type: string
-      summary: Create a feature flag
-      tags:
-      - flags
-  /flag/{flagname}:
-    get:
-      parameters:
-      - description: Flag name
-        in: path
-        name: flagname
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.flagResponse'
-        "400":
-          description: missing flagname
-          schema:
-            type: string
-        "404":
-          description: flag not found
-          schema:
-            type: string
-      summary: Get a feature flag
-      tags:
-      - flags
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Flag name
-        in: path
-        name: flagname
-        required: true
-        type: string
-      - description: New value
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.flagPayload'
-      produces:
-      - text/plain
-      responses:
-        "200":
-          description: OK
-        "400":
-          description: bad request
-          schema:
-            type: string
-      summary: Update a feature flag's value
-      tags:
-      - flags
-  /flags/evaluate:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Evaluation request
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.evaluateRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.evaluateResponse'
-        "400":
-          description: bad request
-          schema:
-            type: string
-      summary: Evaluate feature flags for a context
-      tags:
-      - flags
   /login:
     post:
       consumes:
@@ -215,17 +102,15 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/response.DataResponse'
         "400":
-          description: bad request
+          description: Bad Request
           schema:
-            type: string
+            $ref: '#/definitions/response.ErrorResponse'
         "401":
-          description: invalid credentials
+          description: Unauthorized
           schema:
-            type: string
+            $ref: '#/definitions/response.ErrorResponse'
       summary: Login and receive a JWT
       tags:
       - Authentication
@@ -237,14 +122,12 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/handlers.orgResponse'
-            type: array
+            $ref: '#/definitions/response.DataResponse'
         "500":
-          description: internal error
+          description: Internal Server Error
           schema:
-            type: string
-      summary: List all organizations
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: List all organizations, can only be accessed by internal users
       tags:
       - Organizations
     post:
@@ -263,11 +146,15 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/handlers.orgResponse'
+            $ref: '#/definitions/response.DataResponse'
         "400":
-          description: bad request
+          description: Bad Request
           schema:
-            type: string
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
       summary: Create an organization
       tags:
       - Organizations
@@ -283,13 +170,13 @@ paths:
         "204":
           description: No Content
         "400":
-          description: invalid id
+          description: Bad Request
           schema:
-            type: string
+            $ref: '#/definitions/response.ErrorResponse'
         "404":
-          description: not found
+          description: Not Found
           schema:
-            type: string
+            $ref: '#/definitions/response.ErrorResponse'
       summary: Delete an organization
       tags:
       - Organizations
@@ -306,15 +193,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.orgResponse'
+            $ref: '#/definitions/response.DataResponse'
         "400":
-          description: invalid id
+          description: Bad Request
           schema:
-            type: string
+            $ref: '#/definitions/response.ErrorResponse'
         "404":
-          description: not found
+          description: Not Found
           schema:
-            type: string
+            $ref: '#/definitions/response.ErrorResponse'
       summary: Get an organization by ID
       tags:
       - Organizations
@@ -339,18 +226,547 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.orgResponse'
+            $ref: '#/definitions/response.DataResponse'
         "400":
-          description: bad request
+          description: Bad Request
           schema:
-            type: string
+            $ref: '#/definitions/response.ErrorResponse'
         "404":
-          description: not found
+          description: Not Found
           schema:
-            type: string
+            $ref: '#/definitions/response.ErrorResponse'
       summary: Update an organization
       tags:
       - Organizations
+  /organizations/{id}/plan:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Plan
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.planRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Set an organization's plan
+      tags:
+      - Organizations
+  /organizations/{org_id}/projects:
+    get:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: List projects for an organization
+      tags:
+      - Projects
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.projectRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Create a project within an organization
+      tags:
+      - Projects
+  /organizations/{org_id}/projects/{project_id}:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: Project data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.projectRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Rename a project
+      tags:
+      - Projects
+  /organizations/{org_id}/projects/{project_id}/environments:
+    get:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: List environments for a project
+      tags:
+      - Environments
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: Environment name
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.envNameRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Create an environment in a project
+      tags:
+      - Environments
+  /organizations/{org_id}/projects/{project_id}/environments/{env_name}:
+    delete:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: Environment name
+        in: path
+        name: env_name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Delete an environment
+      tags:
+      - Environments
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: Current environment name
+        in: path
+        name: env_name
+        required: true
+        type: string
+      - description: New name
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.envNameRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Rename an environment
+      tags:
+      - Environments
+  /organizations/{org_id}/projects/{project_id}/flags:
+    get:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: List feature flags for a project
+      tags:
+      - Flags
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: Flag definition
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.flagCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Create a feature flag
+      tags:
+      - Flags
+  /organizations/{org_id}/projects/{project_id}/flags/{flag_id}:
+    delete:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: Flag ID
+        in: path
+        name: flag_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Delete a feature flag
+      tags:
+      - Flags
+    get:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: Flag ID
+        in: path
+        name: flag_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get a feature flag by ID
+      tags:
+      - Flags
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: Flag ID
+        in: path
+        name: flag_id
+        required: true
+        type: integer
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.flagUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Update a feature flag (name, value, enabled)
+      tags:
+      - Flags
   /signup:
     post:
       consumes:
@@ -363,19 +779,123 @@ paths:
         schema:
           $ref: '#/definitions/handlers.signupRequest'
       produces:
-      - text/plain
+      - application/json
       responses:
         "201":
           description: Created
+          schema:
+            $ref: '#/definitions/response.DataResponse'
         "400":
-          description: bad request
+          description: Bad Request
           schema:
-            type: string
+            $ref: '#/definitions/response.ErrorResponse'
         "409":
-          description: email already in use
+          description: Conflict
           schema:
-            type: string
+            $ref: '#/definitions/response.ErrorResponse'
       summary: Register a new user
       tags:
       - Authentication
+  /users/{user_id}:
+    get:
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get current user profile
+      tags:
+      - Users
+  /users/{user_id}/organizations:
+    get:
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: List organizations for a user
+      tags:
+      - Users
+  /users/{user_id}/username:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: Username payload
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.ConflictResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Update username for a user
+      tags:
+      - Users
 swagger: "2.0"

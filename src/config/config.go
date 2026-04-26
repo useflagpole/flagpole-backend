@@ -38,7 +38,7 @@ func init() {
 		AllowOrigin: getEnv("ALLOW_ORIGIN", "http://localhost:5173"),
 	}
 
-	port      := flag.String("port", "", "Port in which the Flagpole API will serve")
+	port      := flag.String("port", "", "Port in which the flagpole API will serve")
 	jwtSecret := flag.String("jwt-secret", "", "Secret key used to sign JWT tokens")
 	dsn       := flag.String("dsn", "", "PostgreSQL DSN (e.g. host=localhost user=postgres password=postgres dbname=flagpole port=5432 sslmode=disable)")
 	flag.Parse()

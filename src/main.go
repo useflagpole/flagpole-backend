@@ -1,4 +1,4 @@
-// @title           Flagpole API
+// @title           flagpole API
 // @version         1.0
 // @description     Feature flag management API
 // @host            localhost:4000
