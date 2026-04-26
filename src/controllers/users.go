@@ -71,9 +71,10 @@ func UpdateUsername(userID uuid.UUID, username string) error {
 }
 
 type UserOrgDTO struct {
-	ID   uint   `json:"id"`
-	Name string `json:"name"`
-	Role string `json:"role"`
+	ID      uint   `json:"id"`
+	Name    string `json:"name"`
+	Role    string `json:"role"`
+	IsOwner bool   `json:"isOwner"`
 }
 
 type UserDTO struct {
@@ -103,7 +104,7 @@ func GetUser(userID uuid.UUID) (*UserDTO, error) {
 
 	orgDTOs := make([]UserOrgDTO, len(orgs))
 	for i, o := range orgs {
-		orgDTOs[i] = UserOrgDTO{ID: o.ID, Name: o.Name, Role: orgRoleMap[o.ID]}
+		orgDTOs[i] = UserOrgDTO{ID: o.ID, Name: o.Name, Role: orgRoleMap[o.ID], IsOwner: o.OwnerID == userID}
 	}
 
 	return &UserDTO{

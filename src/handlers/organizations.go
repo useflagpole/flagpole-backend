@@ -5,6 +5,7 @@ import (
 
 	"flagpole/src/controllers"
 	"flagpole/src/dal"
+	"flagpole/src/models"
 	"flagpole/src/pkg/jwtutil"
 	"flagpole/src/pkg/response"
 
@@ -110,6 +111,7 @@ func CreateOrganization(c fiber.Ctx) (int, response.APIResponse) {
 		return fiber.StatusInternalServerError, response.Error500
 	}
 
+	logAudit(c, org.ID, nil, models.ActionOrgCreate, org.Name, "Created organization '"+org.Name+"'", "")
 	return fiber.StatusCreated, response.DataResponse{Data: org}
 }
 
@@ -185,12 +187,42 @@ func UpdateOrganization(c fiber.Ctx) (int, response.APIResponse) {
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: "name is required"}
 	}
 
+	oldName := org.Name
 	updated, err := controllers.UpdateOrganization(org, req.Name)
 	if err != nil {
 		return fiber.StatusInternalServerError, response.Error500
 	}
 
+	logAudit(c, updated.ID, nil, models.ActionOrgRename, updated.Name, "Renamed organization from '"+oldName+"' to '"+updated.Name+"'", "")
 	return fiber.StatusOK, response.DataResponse{Data: updated}
+}
+
+// ListOrgMembers godoc
+// @Summary      List members of an organization with their roles
+// @Tags         Organizations
+// @Produce      json
+// @Param        id path int true "Organization ID"
+// @Success      200 {object} response.DataResponse
+// @Failure      400 {object} response.ErrorResponse
+// @Failure      403 {object} response.ErrorResponse
+// @Failure      404 {object} response.ErrorResponse
+// @Router       /organizations/{id}/members [get]
+func ListOrgMembers(c fiber.Ctx) (int, response.APIResponse) {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "invalid id"}
+	}
+	if _, err := dal.Organization.GetByID(uint(id)); err != nil {
+		return fiber.StatusNotFound, response.ErrorResponse{Error: "organization not found"}
+	}
+	if !dal.Organization.IsMember(uint(id), jwtutil.UserID(c)) && !isInternalUser(c) {
+		return fiber.StatusForbidden, response.ErrorResponse{Error: "forbidden"}
+	}
+	members, err := dal.Organization.ListMembers(uint(id))
+	if err != nil {
+		return fiber.StatusInternalServerError, response.Error500
+	}
+	return fiber.StatusOK, response.DataResponse{Data: members}
 }
 
 // DeleteOrganization godoc

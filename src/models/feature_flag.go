@@ -18,8 +18,8 @@ const FLAG_STRING_MAX_LEN = 50
 type FeatureFlag struct {
 	Base
 	ProjectID uint   `gorm:"not null;uniqueIndex:idx_flag_key_project"   json:"projectId"`
-	Key       string `gorm:"not null;uniqueIndex:idx_flag_key_project"   json:"key"`
-	Name      string `gorm:"not null"                                    json:"name"`
+	Key         string `gorm:"not null;uniqueIndex:idx_flag_key_project"   json:"key"`
+	Description string `gorm:"not null;default:''"                         json:"description"`
 	FlagType  string `gorm:"not null"                                    json:"type"`
 	RawValue  string `gorm:"not null"                                    json:"-"`
 	Enabled   bool   `gorm:"not null;default:true"                       json:"enabled"`

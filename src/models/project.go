@@ -5,6 +5,7 @@ type Project struct {
 	Name           string `gorm:"not null"                                                   json:"name"`
 	OrganizationID uint   `gorm:"not null"                                                   json:"organizationId"`
 	Environments   string `gorm:"not null;default:'[\"production\",\"staging\",\"dev\"]'"    json:"environments"`
+	IsActive       bool   `gorm:"not null;default:true"                                      json:"isActive"`
 }
 
 func (Project) TableName() string {

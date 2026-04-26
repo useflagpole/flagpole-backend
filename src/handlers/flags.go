@@ -12,16 +12,16 @@ import (
 )
 
 type flagCreateRequest struct {
-	Key      string      `json:"key"`
-	Name     string      `json:"name"`
-	FlagType string      `json:"type"`
-	Value    interface{} `json:"value"`
+	Key         string      `json:"key"`
+	Description string      `json:"description"`
+	FlagType    string      `json:"type"`
+	Value       interface{} `json:"value"`
 }
 
 type flagUpdateRequest struct {
-	Name    *string     `json:"name"`
-	Value   interface{} `json:"value"`
-	Enabled *bool       `json:"enabled"`
+	Description *string     `json:"description"`
+	Value       interface{} `json:"value"`
+	Enabled     *bool       `json:"enabled"`
 }
 
 func flagErr(err error) (int, response.APIResponse) {
@@ -34,9 +34,6 @@ func flagErr(err error) (int, response.APIResponse) {
 		return fiber.StatusUnprocessableEntity, response.ErrorResponse{Error: err.Error()}
 	case errors.Is(err, controllers.ErrFlagNotFound):
 		return fiber.StatusNotFound, response.ErrorResponse{Error: err.Error()}
-	case errors.Is(err, controllers.ErrFlagNameRequired),
-		errors.Is(err, controllers.ErrFlagNameInvalid):
-		return fiber.StatusBadRequest, response.ErrorResponse{Error: err.Error()}
 	default:
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: err.Error()}
 	}
@@ -104,10 +101,11 @@ func CreateFlag(c fiber.Ctx) (int, response.APIResponse) {
 	if err := c.Bind().JSON(&req); err != nil {
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: "couldn't parse body"}
 	}
-	flag, err := controllers.CreateFlag(proj.ID, req.Key, req.Name, models.FlagType(req.FlagType), req.Value)
+	flag, err := controllers.CreateFlag(proj.ID, req.Key, req.Description, models.FlagType(req.FlagType), req.Value)
 	if err != nil {
 		return flagErr(err)
 	}
+	logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagCreate, flag.Key, "Created flag '"+flag.Key+"'", "")
 	return fiber.StatusCreated, response.DataResponse{Data: flag}
 }
 
@@ -146,7 +144,7 @@ func GetFlag(c fiber.Ctx) (int, response.APIResponse) {
 // @Failure      404 {object} response.ErrorResponse
 // @Router       /organizations/{org_id}/projects/{project_id}/flags/{flag_id} [patch]
 func UpdateFlag(c fiber.Ctx) (int, response.APIResponse) {
-	flag, _, status, errResp := resolveFlag(c)
+	flag, proj, status, errResp := resolveFlag(c)
 	if errResp != nil {
 		return status, errResp
 	}
@@ -154,10 +152,21 @@ func UpdateFlag(c fiber.Ctx) (int, response.APIResponse) {
 	if err := c.Bind().JSON(&req); err != nil {
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: "couldn't parse body"}
 	}
-	updated, err := controllers.UpdateFlag(flag, req.Name, req.Value, req.Enabled)
+	action := models.ActionFlagUpdate
+	detail := "Updated flag '" + flag.Key + "'"
+	if req.Enabled != nil {
+		action = models.ActionFlagToggle
+		state := "Disabled"
+		if *req.Enabled {
+			state = "Enabled"
+		}
+		detail = state + " flag '" + flag.Key + "'"
+	}
+	updated, err := controllers.UpdateFlag(flag, req.Description, req.Value, req.Enabled)
 	if err != nil {
 		return flagErr(err)
 	}
+	logAudit(c, proj.OrganizationID, &proj.ID, action, flag.Key, detail, "")
 	return fiber.StatusOK, response.DataResponse{Data: updated}
 }
 
@@ -175,12 +184,13 @@ func UpdateFlag(c fiber.Ctx) (int, response.APIResponse) {
 // @Failure      500 {object} response.ErrorResponse
 // @Router       /organizations/{org_id}/projects/{project_id}/flags/{flag_id} [delete]
 func DeleteFlag(c fiber.Ctx) (int, response.APIResponse) {
-	flag, _, status, errResp := resolveFlag(c)
+	flag, proj, status, errResp := resolveFlag(c)
 	if errResp != nil {
 		return status, errResp
 	}
 	if err := controllers.DeleteFlag(flag); err != nil {
 		return fiber.StatusInternalServerError, response.Error500
 	}
+	logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagDelete, flag.Key, "Deleted flag '"+flag.Key+"'", "")
 	return fiber.StatusNoContent, nil
 }

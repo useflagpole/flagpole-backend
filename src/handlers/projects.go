@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"errors"
 	"strconv"
 
 	"flagpole/src/controllers"
 	"flagpole/src/dal"
+	"flagpole/src/models"
 	"flagpole/src/pkg/jwtutil"
 	"flagpole/src/pkg/response"
 
@@ -40,7 +42,8 @@ func ListProjects(c fiber.Ctx) (int, response.APIResponse) {
 		return fiber.StatusForbidden, response.ErrorResponse{Error: "forbidden"}
 	}
 
-	projects, err := dal.Project.ListByOrg(uint(orgID))
+	includeArchived := c.Query("getArchived") == "true"
+	projects, err := dal.Project.ListByOrg(uint(orgID), includeArchived)
 	if err != nil {
 		return fiber.StatusInternalServerError, response.Error500
 	}
@@ -84,9 +87,13 @@ func CreateProject(c fiber.Ctx) (int, response.APIResponse) {
 
 	project, err := controllers.CreateProject(req.Name, uint(orgID), req.Environments)
 	if err != nil {
+		if errors.Is(err, controllers.ErrProjectLimitReached) {
+			return fiber.StatusUnprocessableEntity, response.ErrorResponse{Error: err.Error()}
+		}
 		return fiber.StatusInternalServerError, response.Error500
 	}
 
+	logAudit(c, uint(orgID), &project.ID, models.ActionProjectCreate, project.Name, "Created project '"+project.Name+"'", "")
 	return fiber.StatusCreated, response.DataResponse{Data: project}
 }
 
@@ -120,5 +127,65 @@ func UpdateProject(c fiber.Ctx) (int, response.APIResponse) {
 	if err != nil {
 		return fiber.StatusInternalServerError, response.Error500
 	}
+	logAudit(c, proj.OrganizationID, &proj.ID, models.ActionProjectRename, updated.Name, "Renamed project to '"+updated.Name+"'", "")
+	return fiber.StatusOK, response.DataResponse{Data: updated}
+}
+
+// ArchiveProject godoc
+// @Summary      Archive a project
+// @Tags         Projects
+// @Produce      json
+// @Param        org_id     path int true "Organization ID"
+// @Param        project_id path int true "Project ID"
+// @Success      200 {object} response.DataResponse
+// @Failure      400 {object} response.ErrorResponse
+// @Failure      403 {object} response.ErrorResponse
+// @Failure      404 {object} response.ErrorResponse
+// @Failure      500 {object} response.ErrorResponse
+// @Router       /organizations/{org_id}/projects/{project_id}/archive [post]
+func ArchiveProject(c fiber.Ctx) (int, response.APIResponse) {
+	proj, status, errResp := resolveProject(c)
+	if errResp != nil {
+		return status, errResp
+	}
+	if status, errResp := requireAdminOrEditor(proj.OrganizationID, c); errResp != nil {
+		return status, errResp
+	}
+	updated, err := controllers.ArchiveProject(proj)
+	if err != nil {
+		return fiber.StatusInternalServerError, response.Error500
+	}
+	logAudit(c, proj.OrganizationID, &proj.ID, models.ActionProjectArchive, proj.Name, "Archived project '"+proj.Name+"'", "")
+	return fiber.StatusOK, response.DataResponse{Data: updated}
+}
+
+// UnarchiveProject godoc
+// @Summary      Unarchive a project
+// @Tags         Projects
+// @Produce      json
+// @Param        org_id     path int true "Organization ID"
+// @Param        project_id path int true "Project ID"
+// @Success      200 {object} response.DataResponse
+// @Failure      400 {object} response.ErrorResponse
+// @Failure      403 {object} response.ErrorResponse
+// @Failure      404 {object} response.ErrorResponse
+// @Failure      500 {object} response.ErrorResponse
+// @Router       /organizations/{org_id}/projects/{project_id}/unarchive [post]
+func UnarchiveProject(c fiber.Ctx) (int, response.APIResponse) {
+	proj, status, errResp := resolveAnyProject(c)
+	if errResp != nil {
+		return status, errResp
+	}
+	if status, errResp := requireAdminOrEditor(proj.OrganizationID, c); errResp != nil {
+		return status, errResp
+	}
+	updated, err := controllers.UnarchiveProject(proj)
+	if err != nil {
+		if errors.Is(err, controllers.ErrProjectLimitReached) {
+			return fiber.StatusUnprocessableEntity, response.ErrorResponse{Error: err.Error()}
+		}
+		return fiber.StatusInternalServerError, response.Error500
+	}
+	logAudit(c, proj.OrganizationID, &proj.ID, models.ActionProjectUnarchive, proj.Name, "Unarchived project '"+proj.Name+"'", "")
 	return fiber.StatusOK, response.DataResponse{Data: updated}
 }

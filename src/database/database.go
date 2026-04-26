@@ -32,7 +32,9 @@ func migrate() {
 	backfillOrganizationOwner()
 	backfillUserOrgRole()
 	backfillUsername()
-	if err := DB.AutoMigrate(&models.Role{}, &models.Organization{}, &models.User{}, &models.UserOrganization{}, &models.Project{}, &models.FeatureFlag{}); err != nil {
+	backfillFlagDescription()
+	backfillAuditLogActorIDType()
+	if err := DB.AutoMigrate(&models.Role{}, &models.Organization{}, &models.User{}, &models.UserOrganization{}, &models.Project{}, &models.FeatureFlag{}, &models.AuditLog{}); err != nil {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 	dropLegacyColumns()
@@ -136,6 +138,36 @@ func backfillUsername() {
 	}
 
 	log.Println("Backfilled auth.users.username")
+}
+
+func backfillAuditLogActorIDType() {
+	var colType string
+	DB.Raw(`
+		SELECT data_type FROM information_schema.columns
+		WHERE table_schema = 'auth' AND table_name = 'audit_logs' AND column_name = 'actor_id'
+	`).Scan(&colType)
+	if colType == "" || colType == "uuid" {
+		return
+	}
+	if err := DB.Exec(`ALTER TABLE auth.audit_logs ALTER COLUMN actor_id TYPE uuid USING actor_id::uuid`).Error; err != nil {
+		log.Fatalf("backfillAuditLogActorIDType: %v", err)
+	}
+	log.Println("Converted audit_logs.actor_id to uuid type")
+}
+
+func backfillFlagDescription() {
+	if DB.Migrator().HasColumn(&models.FeatureFlag{}, "description") {
+		return
+	}
+	steps := []string{
+		`ALTER TABLE auth.feature_flags RENAME COLUMN name TO description`,
+	}
+	for _, stmt := range steps {
+		if err := DB.Exec(stmt).Error; err != nil {
+			log.Fatalf("backfillFlagDescription: %v", err)
+		}
+	}
+	log.Println("Renamed feature_flags.name to description")
 }
 
 func dropLegacyColumns() {

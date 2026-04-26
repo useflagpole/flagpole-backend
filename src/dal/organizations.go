@@ -55,18 +55,23 @@ func (organizationDAL) SetPlan(orgID uint, plan string) error {
 	return database.DB.Model(&models.Organization{}).Where("id = ?", orgID).Update("plan", plan).Error
 }
 
-func (organizationDAL) IsAdmin(orgID uint, userID uuid.UUID) bool {
+func (organizationDAL) GetMemberRole(orgID uint, userID uuid.UUID) (string, error) {
 	var uo models.UserOrganization
 	if err := database.DB.
 		Where("organization_id = ? AND user_id = ?", orgID, userID).
 		First(&uo).Error; err != nil {
-		return false
+		return "", err
 	}
 	var role models.Role
 	if err := database.DB.First(&role, uo.RoleID).Error; err != nil {
-		return false
+		return "", err
 	}
-	return role.Name == "admin"
+	return role.Name, nil
+}
+
+func (organizationDAL) IsAdmin(orgID uint, userID uuid.UUID) bool {
+	name, err := Organization.GetMemberRole(orgID, userID)
+	return err == nil && name == "admin"
 }
 
 func (organizationDAL) IsMember(orgID uint, userID uuid.UUID) bool {
@@ -82,4 +87,26 @@ func (organizationDAL) AddUser(orgID uint, userID uuid.UUID) error {
 		OrganizationID: orgID,
 		UserID:         userID,
 	}).Error
+}
+
+type OrgMember struct {
+	UserID    uuid.UUID `json:"userId"`
+	Username  string    `json:"username"`
+	FirstName string    `json:"firstName"`
+	LastName  string    `json:"lastName"`
+	Email     string    `json:"email"`
+	Role      string    `json:"role"`
+}
+
+func (organizationDAL) ListMembers(orgID uint) ([]OrgMember, error) {
+	var members []OrgMember
+	err := database.DB.Raw(`
+		SELECT u.id AS user_id, u.username, u.first_name, u.last_name, u.email, r.name AS role
+		FROM auth.users u
+		JOIN auth.user_organizations uo ON uo.user_id = u.id
+		JOIN auth.roles r ON r.id = uo.role_id
+		WHERE uo.organization_id = ?
+		ORDER BY u.username ASC
+	`, orgID).Scan(&members).Error
+	return members, err
 }

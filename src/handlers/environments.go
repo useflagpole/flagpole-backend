@@ -24,7 +24,45 @@ func requireAdmin(orgID uint, c fiber.Ctx) (int, response.APIResponse) {
 	return 0, nil
 }
 
+func requireAdminOrEditor(orgID uint, c fiber.Ctx) (int, response.APIResponse) {
+	role, err := dal.Organization.GetMemberRole(orgID, jwtutil.UserID(c))
+	if err != nil || (role != "admin" && role != "editor") {
+		return fiber.StatusForbidden, response.ErrorResponse{Error: "forbidden: admin or editor role required"}
+	}
+	return 0, nil
+}
+
 func resolveProject(c fiber.Ctx) (*models.Project, int, response.APIResponse) {
+	orgID, err := strconv.ParseUint(c.Params("org_id"), 10, 64)
+	if err != nil {
+		return nil, fiber.StatusBadRequest, response.ErrorResponse{Error: "invalid org id"}
+	}
+	if _, err := dal.Organization.GetByID(uint(orgID)); err != nil {
+		return nil, fiber.StatusNotFound, response.ErrorResponse{Error: "organization not found"}
+	}
+	if !dal.Organization.IsMember(uint(orgID), jwtutil.UserID(c)) {
+		return nil, fiber.StatusForbidden, response.ErrorResponse{Error: "forbidden"}
+	}
+	projectID, err := strconv.ParseUint(c.Params("project_id"), 10, 64)
+	if err != nil {
+		return nil, fiber.StatusBadRequest, response.ErrorResponse{Error: "invalid project id"}
+	}
+	proj, err := dal.Project.GetByID(uint(projectID))
+	if err != nil {
+		return nil, fiber.StatusNotFound, response.ErrorResponse{Error: "project not found"}
+	}
+	if proj.OrganizationID != uint(orgID) {
+		return nil, fiber.StatusForbidden, response.ErrorResponse{Error: "forbidden"}
+	}
+	if !proj.IsActive {
+		return nil, fiber.StatusNotFound, response.ErrorResponse{Error: "project not found"}
+	}
+	return proj, 0, nil
+}
+
+// resolveAnyProject resolves a project regardless of its archived state.
+// Use only for the unarchive endpoint.
+func resolveAnyProject(c fiber.Ctx) (*models.Project, int, response.APIResponse) {
 	orgID, err := strconv.ParseUint(c.Params("org_id"), 10, 64)
 	if err != nil {
 		return nil, fiber.StatusBadRequest, response.ErrorResponse{Error: "invalid org id"}
