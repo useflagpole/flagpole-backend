@@ -21,6 +21,23 @@ import (
 // @Failure      403 {object} response.ErrorResponse
 // @Failure      500 {object} response.ErrorResponse
 // @Router       /users/{user_id}/organizations [get]
+func GetUser(c fiber.Ctx) (int, response.APIResponse) {
+	paramID, err := uuid.Parse(c.Params("user_id"))
+	if err != nil {
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "invalid user id"}
+	}
+	if paramID != jwtutil.UserID(c) {
+		return fiber.StatusForbidden, response.ErrorResponse{Error: "forbidden"}
+	}
+
+	dto, err := controllers.GetUser(paramID)
+	if err != nil {
+		return fiber.StatusInternalServerError, response.Error500
+	}
+
+	return fiber.StatusOK, response.DataResponse{Data: dto}
+}
+
 func ListUserOrganizations(c fiber.Ctx) (int, response.APIResponse) {
 	paramID, err := uuid.Parse(c.Params("user_id"))
 	if err != nil {

@@ -70,6 +70,52 @@ func UpdateUsername(userID uuid.UUID, username string) error {
 	return dal.User.UpdateUsername(userID, username)
 }
 
+type UserOrgDTO struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
+	Role string `json:"role"`
+}
+
+type UserDTO struct {
+	ID        uuid.UUID    `json:"id"`
+	Username  string       `json:"username"`
+	FirstName string       `json:"firstName"`
+	LastName  string       `json:"lastName"`
+	Email     string       `json:"email"`
+	Orgs      []UserOrgDTO `json:"orgs"`
+}
+
+func GetUser(userID uuid.UUID) (*UserDTO, error) {
+	user, err := dal.User.GetByID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	orgRoleMap, err := dal.User.GetOrgRoles(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	orgs, err := dal.Organization.ListByUser(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	orgDTOs := make([]UserOrgDTO, len(orgs))
+	for i, o := range orgs {
+		orgDTOs[i] = UserOrgDTO{ID: o.ID, Name: o.Name, Role: orgRoleMap[o.ID]}
+	}
+
+	return &UserDTO{
+		ID:        user.ID,
+		Username:  user.Username,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Email:     user.Email,
+		Orgs:      orgDTOs,
+	}, nil
+}
+
 func GetUserOrganizations(userID uuid.UUID) ([]models.Organization, error) {
 	return dal.Organization.ListByUser(userID)
 }
