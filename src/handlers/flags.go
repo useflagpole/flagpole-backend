@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 
 	"flagpole/src/controllers"
@@ -348,8 +349,15 @@ func UpdateFlagConfig(c fiber.Ctx) (int, response.APIResponse) {
 		}
 		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagToggle, flag.Key, state+" flag '"+flag.Key+"' in "+env, env)
 	}
-	if changes.RolloutChanged {
-		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagRollout, flag.Key, "Updated rollout for '"+flag.Key+"' in "+env, env)
+	if changes.RolloutToggled != nil {
+		state := "Disabled"
+		if *changes.RolloutToggled {
+			state = "Enabled"
+		}
+		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagRollout, flag.Key, state+" rollout for '"+flag.Key+"' in "+env, env)
+	}
+	if changes.RolloutPctChanged {
+		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagRollout, flag.Key, "Rollout for '"+flag.Key+"' set to "+fmt.Sprint(changes.RolloutPct)+"% in "+env, env)
 	}
 	if changes.ValuesChanged {
 		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagValues, flag.Key, "Updated values for '"+flag.Key+"' in "+env, env)

@@ -85,11 +85,13 @@ func UpdateFlagMetadata(flag *models.FeatureFlag, description *string) (*models.
 }
 
 type FlagConfigChanges struct {
-	EnabledChanged   *bool
-	RolloutChanged   bool
-	ValuesChanged    bool
-	OverridesAdded   []uint
-	OverridesRemoved []uint
+	EnabledChanged     *bool
+	RolloutToggled     *bool
+	RolloutPctChanged  bool
+	RolloutPct         int
+	ValuesChanged      bool
+	OverridesAdded     []uint
+	OverridesRemoved   []uint
 }
 
 type OverridePayload struct {
@@ -248,12 +250,16 @@ func UpdateFlagConfig(flagID uint, env string,
 	oldRolloutPct := config.RolloutPercentage
 	if rolloutEnabled != nil {
 		config.RolloutEnabled = *rolloutEnabled
+		if config.RolloutEnabled != oldRolloutEnabled {
+			changes.RolloutToggled = &config.RolloutEnabled
+		}
 	}
 	if rolloutPercentage != nil {
 		config.RolloutPercentage = *rolloutPercentage
-	}
-	if config.RolloutEnabled != oldRolloutEnabled || config.RolloutPercentage != oldRolloutPct {
-		changes.RolloutChanged = true
+		if config.RolloutPercentage != oldRolloutPct {
+			changes.RolloutPctChanged = true
+			changes.RolloutPct = config.RolloutPercentage
+		}
 	}
 
 	oldDefault := config.DefaultValue

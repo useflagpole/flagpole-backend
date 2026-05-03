@@ -54,7 +54,7 @@ func (auditDAL) ListByTarget(projectID uint, target string, env string) ([]Audit
 		WHERE al.project_id = ? AND al.target = ?`
 	args := []interface{}{projectID, target}
 	if env != "" {
-		query += ` AND (al.env = ? OR al.env = '')`
+		query += ` AND (al.env = ? OR al.env = '' OR al.env IS NULL)`
 		args = append(args, env)
 	}
 	query += ` ORDER BY al.created_at DESC`
