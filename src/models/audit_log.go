@@ -39,4 +39,4 @@ type AuditLog struct {
 	Env    string `gorm:"default:null" json:"env"`
 }
 
-func (AuditLog) TableName() string { return "auth.audit_logs" }
+func (AuditLog) TableName() string { return "audit.audit_logs" }

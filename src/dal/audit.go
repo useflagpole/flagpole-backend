@@ -35,7 +35,7 @@ func (auditDAL) ListByProject(projectID uint) ([]AuditEntry, error) {
 		SELECT al.id, al.created_at, al.org_id, al.project_id,
 		       COALESCE(u.username, al.actor_email) AS actor,
 		       al.action, al.target, al.detail, al.env
-		FROM auth.audit_logs al
+		FROM audit.audit_logs al
 		LEFT JOIN auth.users u ON u.id = al.actor_id
 		WHERE al.project_id = ?
 		ORDER BY al.created_at DESC
@@ -49,7 +49,7 @@ func (auditDAL) ListByOrg(orgID uint) ([]AuditEntry, error) {
 		SELECT al.id, al.created_at, al.org_id, al.project_id,
 		       COALESCE(u.username, al.actor_email) AS actor,
 		       al.action, al.target, al.detail, al.env
-		FROM auth.audit_logs al
+		FROM audit.audit_logs al
 		LEFT JOIN auth.users u ON u.id = al.actor_id
 		WHERE al.org_id = ?
 		ORDER BY al.created_at DESC

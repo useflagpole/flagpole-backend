@@ -8,6 +8,7 @@ import (
 	"flagpole/src/dal"
 	"flagpole/src/models"
 	"flagpole/src/pkg/jwtutil"
+	"flagpole/src/pkg/permissions"
 	"flagpole/src/pkg/response"
 
 	"github.com/gofiber/fiber/v3"
@@ -76,6 +77,9 @@ func CreateProject(c fiber.Ctx) (int, response.APIResponse) {
 	if !dal.Organization.IsMember(uint(orgID), jwtutil.UserID(c)) {
 		return fiber.StatusForbidden, response.ErrorResponse{Error: "forbidden"}
 	}
+	if status, errResp := requirePermission(uint(orgID), permissions.ProjectCreate, c); errResp != nil {
+		return status, errResp
+	}
 
 	var req projectRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -116,7 +120,7 @@ func UpdateProject(c fiber.Ctx) (int, response.APIResponse) {
 	if errResp != nil {
 		return status, errResp
 	}
-	if status, errResp := requireAdmin(proj.OrganizationID, c); errResp != nil {
+	if status, errResp := requirePermission(proj.OrganizationID, permissions.ProjectRename, c); errResp != nil {
 		return status, errResp
 	}
 	var req projectRequest
@@ -148,7 +152,7 @@ func ArchiveProject(c fiber.Ctx) (int, response.APIResponse) {
 	if errResp != nil {
 		return status, errResp
 	}
-	if status, errResp := requireAdminOrEditor(proj.OrganizationID, c); errResp != nil {
+	if status, errResp := requirePermission(proj.OrganizationID, permissions.ProjectArchive, c); errResp != nil {
 		return status, errResp
 	}
 	updated, err := controllers.ArchiveProject(proj)
@@ -176,7 +180,7 @@ func UnarchiveProject(c fiber.Ctx) (int, response.APIResponse) {
 	if errResp != nil {
 		return status, errResp
 	}
-	if status, errResp := requireAdminOrEditor(proj.OrganizationID, c); errResp != nil {
+	if status, errResp := requirePermission(proj.OrganizationID, permissions.ProjectUnarchive, c); errResp != nil {
 		return status, errResp
 	}
 	updated, err := controllers.UnarchiveProject(proj)

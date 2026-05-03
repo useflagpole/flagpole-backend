@@ -42,7 +42,7 @@ func (organizationDAL) Delete(org *models.Organization) error {
 func (organizationDAL) ListByUser(userID uuid.UUID) ([]models.Organization, error) {
 	var orgs []models.Organization
 	err := database.DB.
-		Joins("JOIN auth.user_organizations uo ON uo.organization_id = organizations.id").
+		Joins("JOIN org.user_organizations uo ON uo.organization_id = organizations.id").
 		Where("uo.user_id = ?", userID).
 		Find(&orgs).Error
 	if err != nil {
@@ -55,23 +55,18 @@ func (organizationDAL) SetPlan(orgID uint, plan string) error {
 	return database.DB.Model(&models.Organization{}).Where("id = ?", orgID).Update("plan", plan).Error
 }
 
-func (organizationDAL) GetMemberRole(orgID uint, userID uuid.UUID) (string, error) {
-	var uo models.UserOrganization
-	if err := database.DB.
-		Where("organization_id = ? AND user_id = ?", orgID, userID).
-		First(&uo).Error; err != nil {
-		return "", err
+func (organizationDAL) HasPermission(orgID uint, userID uuid.UUID, permCode string) bool {
+	var org models.Organization
+	if err := database.DB.First(&org, orgID).Error; err == nil && org.OwnerID == userID {
+		return true
 	}
-	var role models.Role
-	if err := database.DB.First(&role, uo.RoleID).Error; err != nil {
-		return "", err
-	}
-	return role.Name, nil
-}
-
-func (organizationDAL) IsAdmin(orgID uint, userID uuid.UUID) bool {
-	name, err := Organization.GetMemberRole(orgID, userID)
-	return err == nil && name == "admin"
+	var count int64
+	database.DB.Raw(`
+		SELECT COUNT(*) FROM org.user_organizations uo
+		JOIN org.org_role_permissions orp ON orp.org_role_id = uo.org_role_id
+		WHERE uo.user_id = ? AND uo.organization_id = ? AND orp.permission_code = ?
+	`, userID, orgID, permCode).Scan(&count)
+	return count > 0
 }
 
 func (organizationDAL) IsMember(orgID uint, userID uuid.UUID) bool {
@@ -82,10 +77,11 @@ func (organizationDAL) IsMember(orgID uint, userID uuid.UUID) bool {
 	return count > 0
 }
 
-func (organizationDAL) AddUser(orgID uint, userID uuid.UUID) error {
+func (organizationDAL) AddUser(orgID uint, userID uuid.UUID, orgRoleID uint) error {
 	return database.DB.Create(&models.UserOrganization{
 		OrganizationID: orgID,
 		UserID:         userID,
+		OrgRoleID:      orgRoleID,
 	}).Error
 }
 
@@ -99,12 +95,12 @@ type OrgMember struct {
 }
 
 func (organizationDAL) ListMembers(orgID uint) ([]OrgMember, error) {
-	var members []OrgMember
+	members := make([]OrgMember, 0)
 	err := database.DB.Raw(`
 		SELECT u.id AS user_id, u.username, u.first_name, u.last_name, u.email, r.name AS role
 		FROM auth.users u
-		JOIN auth.user_organizations uo ON uo.user_id = u.id
-		JOIN auth.roles r ON r.id = uo.role_id
+		JOIN org.user_organizations uo ON uo.user_id = u.id
+		JOIN org.org_roles r ON r.id = uo.org_role_id
 		WHERE uo.organization_id = ?
 		ORDER BY u.username ASC
 	`, orgID).Scan(&members).Error

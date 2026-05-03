@@ -14,12 +14,11 @@ type User struct {
 	LastName      string         `gorm:"not null"`
 	PwdHash       string         `gorm:"not null"`
 	PwdSalt       string         `gorm:"not null"`
-	RoleID        uint           `gorm:"not null;constraint:OnDelete:RESTRICT"`
-	Organizations []Organization `gorm:"many2many:auth.user_organizations;joinForeignKey:UserID;joinReferences:OrganizationID"`
+	Organizations []Organization `gorm:"many2many:org.user_organizations;joinForeignKey:UserID;joinReferences:OrganizationID"`
 }
 
 func (User) TableName() string {
-	return "auth.users"
+	return "auth.users" // auth schema: identity only
 }
 
 func (u *User) BeforeCreate(tx *gorm.DB) error {

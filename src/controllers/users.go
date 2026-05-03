@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"errors"
-	"log"
 
 	"flagpole/src/dal"
 	"flagpole/src/models"
@@ -30,12 +29,6 @@ func RegisterUser(email, username, firstName, lastName, password string) (*model
 		return nil, conflict
 	}
 
-	viewerRole, err := dal.Role.GetByName("viewer")
-	if err != nil {
-		log.Printf("RegisterUser: viewer role lookup failed: %v", err)
-		return nil, errors.New("internal error")
-	}
-
 	salt, err := crypto.GenerateSalt()
 	if err != nil {
 		return nil, err
@@ -53,7 +46,6 @@ func RegisterUser(email, username, firstName, lastName, password string) (*model
 		LastName:  lastName,
 		PwdHash:   hash,
 		PwdSalt:   salt,
-		RoleID:    viewerRole.ID,
 	}
 
 	if err := dal.User.Create(user); err != nil {

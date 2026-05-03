@@ -7,6 +7,7 @@ import (
 	"flagpole/src/dal"
 	"flagpole/src/models"
 	"flagpole/src/pkg/jwtutil"
+	"flagpole/src/pkg/permissions"
 	"flagpole/src/pkg/response"
 
 	"github.com/gofiber/fiber/v3"
@@ -177,6 +178,9 @@ func UpdateOrganization(c fiber.Ctx) (int, response.APIResponse) {
 
 	if controllers.IsInternalOrg(org.Name) && !isInternalUser(c) {
 		return fiber.StatusNotFound, response.ErrorResponse{Error: "organization not found"}
+	}
+	if status, errResp := requirePermission(uint(id), permissions.OrgRename, c); errResp != nil {
+		return status, errResp
 	}
 
 	var req orgRequest

@@ -54,12 +54,6 @@ func CreateOrganization(name string, userID uuid.UUID) (*models.Organization, er
 		return nil, ErrOrgLimitReached
 	}
 
-	adminRole, err := dal.Role.GetByName("admin")
-	if err != nil {
-		log.Printf("CreateOrganization: admin role lookup failed: %v", err)
-		return nil, errors.New("internal error")
-	}
-
 	var org *models.Organization
 
 	err = database.DB.Transaction(func(tx *gorm.DB) error {
@@ -67,13 +61,21 @@ func CreateOrganization(name string, userID uuid.UUID) (*models.Organization, er
 		if err := tx.Create(org).Error; err != nil {
 			return err
 		}
+		if err := dal.OrgRole.SeedForOrgTx(tx, org.ID); err != nil {
+			return err
+		}
+		adminRole, err := dal.OrgRole.GetAdminRoleTx(tx, org.ID)
+		if err != nil {
+			return err
+		}
 		return tx.Create(&models.UserOrganization{
 			OrganizationID: org.ID,
 			UserID:         userID,
-			RoleID:         adminRole.ID,
+			OrgRoleID:      adminRole.ID,
 		}).Error
 	})
 	if err != nil {
+		log.Printf("CreateOrganization: transaction failed: %v", err)
 		return nil, err
 	}
 
