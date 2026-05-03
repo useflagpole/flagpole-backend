@@ -85,6 +85,12 @@ func (organizationDAL) AddUser(orgID uint, userID uuid.UUID, orgRoleID uint) err
 	}).Error
 }
 
+func (organizationDAL) UpdateMemberRole(orgID uint, userID string, orgRoleID uint) error {
+	return database.DB.Model(&models.UserOrganization{}).
+		Where("organization_id = ? AND user_id = ?", orgID, userID).
+		Update("org_role_id", orgRoleID).Error
+}
+
 type OrgMember struct {
 	UserID    uuid.UUID `json:"userId"`
 	Username  string    `json:"username"`
@@ -92,15 +98,18 @@ type OrgMember struct {
 	LastName  string    `json:"lastName"`
 	Email     string    `json:"email"`
 	Role      string    `json:"role"`
+	IsOwner   bool      `json:"isOwner"`
 }
 
 func (organizationDAL) ListMembers(orgID uint) ([]OrgMember, error) {
 	members := make([]OrgMember, 0)
 	err := database.DB.Raw(`
-		SELECT u.id AS user_id, u.username, u.first_name, u.last_name, u.email, r.name AS role
+		SELECT u.id AS user_id, u.username, u.first_name, u.last_name, u.email, r.name AS role,
+			   CASE WHEN u.id = o.owner_id THEN true ELSE false END AS is_owner
 		FROM auth.users u
 		JOIN org.user_organizations uo ON uo.user_id = u.id
 		JOIN org.org_roles r ON r.id = uo.org_role_id
+		JOIN org.organizations o ON o.id = uo.organization_id
 		WHERE uo.organization_id = ?
 		ORDER BY u.username ASC
 	`, orgID).Scan(&members).Error

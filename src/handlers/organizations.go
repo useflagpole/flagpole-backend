@@ -21,6 +21,10 @@ type planRequest struct {
 	Plan string `json:"plan"`
 }
 
+type updateMemberRoleRequest struct {
+	RoleID uint `json:"roleId"`
+}
+
 func isInternalUser(c fiber.Ctx) bool {
 	orgs, err := dal.Organization.ListByUser(jwtutil.UserID(c))
 	if err != nil {
@@ -227,6 +231,62 @@ func ListOrgMembers(c fiber.Ctx) (int, response.APIResponse) {
 		return fiber.StatusInternalServerError, response.Error500
 	}
 	return fiber.StatusOK, response.DataResponse{Data: members}
+}
+
+// UpdateMemberRole godoc
+// @Summary      Update a member's role in an organization
+// @Tags         Organizations
+// @Accept       json
+// @Produce      json
+// @Param        id     path int                     true "Organization ID"
+// @Param        userId path string                  true "User ID"
+// @Param        body   body updateMemberRoleRequest true "New role ID"
+// @Success      200 {object} response.DataResponse
+// @Failure      400 {object} response.ErrorResponse
+// @Failure      403 {object} response.ErrorResponse
+// @Failure      404 {object} response.ErrorResponse
+// @Router       /organizations/{id}/members/{userId}/role [put]
+func UpdateMemberRole(c fiber.Ctx) (int, response.APIResponse) {
+	orgID, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "invalid id"}
+	}
+
+	org, err := dal.Organization.GetByID(uint(orgID))
+	if err != nil {
+		return fiber.StatusNotFound, response.ErrorResponse{Error: "organization not found"}
+	}
+
+	if status, errResp := requirePermission(uint(orgID), permissions.MemberRole, c); errResp != nil {
+		return status, errResp
+	}
+
+	userID := c.Params("userId")
+	if userID == "" {
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "user id is required"}
+	}
+
+	// Prevent changing the owner's role
+	if org.OwnerID.String() == userID {
+		return fiber.StatusForbidden, response.ErrorResponse{Error: "cannot change owner's role"}
+	}
+
+	var req updateMemberRoleRequest
+	if err := c.Bind().JSON(&req); err != nil || req.RoleID == 0 {
+		return fiber.StatusBadRequest, response.ErrorResponse{Error: "roleId is required"}
+	}
+
+	// Verify the role belongs to this organization
+	role, err := dal.OrgRole.GetByID(req.RoleID)
+	if err != nil || role.OrganizationID != uint(orgID) {
+		return fiber.StatusNotFound, response.ErrorResponse{Error: "role not found"}
+	}
+
+	if err := dal.Organization.UpdateMemberRole(uint(orgID), userID, req.RoleID); err != nil {
+		return fiber.StatusInternalServerError, response.ErrorResponse{Error: err.Error()}
+	}
+
+	return fiber.StatusOK, response.DataResponse{Data: fiber.Map{"roleId": req.RoleID}}
 }
 
 // DeleteOrganization godoc

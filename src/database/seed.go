@@ -36,7 +36,7 @@ func seedOrgDefaultRolesInDB(orgID uint, tx ...*gorm.DB) error {
 	specs := []roleSpec{
 		{name: "admin", isProtected: true, perms: allPerms},
 		{name: "editor", isProtected: false, perms: permissions.DefaultEditorPerms},
-		{name: "viewer", isProtected: false, perms: map[string]bool{}},
+		{name: "viewer", isProtected: false, perms: permissions.DefaultViewerPerms},
 	}
 
 	for _, spec := range specs {
