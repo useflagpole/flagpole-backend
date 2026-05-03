@@ -14,4 +14,7 @@ func registerFlagRoutes(api fiber.Router) {
 	api.Get(proj+"/flags/:flag_id", response.Wrap(handlers.GetFlag))
 	api.Patch(proj+"/flags/:flag_id", response.Wrap(handlers.UpdateFlag))
 	api.Delete(proj+"/flags/:flag_id", response.Wrap(handlers.DeleteFlag))
+	api.Get(proj+"/flags/:flag_id/audit", response.Wrap(handlers.GetFlagAudit))
+	api.Post(proj+"/flags/:flag_id/config", response.Wrap(handlers.CreateFlagEnvConfig))
+	api.Patch(proj+"/flags/:flag_id/config", response.Wrap(handlers.UpdateFlagConfig))
 }

@@ -47,3 +47,20 @@ func (featureFlagDAL) Save(flag *models.FeatureFlag) error {
 func (featureFlagDAL) Delete(flag *models.FeatureFlag) error {
 	return database.DB.Delete(flag).Error
 }
+
+func (featureFlagDAL) UpdateRollout(id uint, rolloutEnabled bool, rolloutPercentage int) error {
+	return database.DB.Model(&models.FeatureFlag{}).Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"rollout_enabled":    rolloutEnabled,
+			"rollout_percentage": rolloutPercentage,
+		}).Error
+}
+
+func (featureFlagDAL) UpdateValues(id uint, defaultValue, servedValue string) error {
+	return database.DB.Model(&models.FeatureFlag{}).Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"default_value": defaultValue,
+			"served_value":  servedValue,
+		}).Error
+}
+

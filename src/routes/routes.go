@@ -37,4 +37,5 @@ func Setup(app *fiber.App) {
 	registerProjectRoutes(guarded)
 	registerEnvironmentRoutes(guarded)
 	registerFlagRoutes(guarded)
+	registerSegmentRoutes(guarded)
 }

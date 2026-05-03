@@ -1,9 +1,37 @@
 basePath: /api/v1
 definitions:
+  controllers.OverridePayload:
+    properties:
+      enabled:
+        type: boolean
+      segmentId:
+        type: integer
+      value: {}
+    type: object
+  handlers.createRoleRequest:
+    properties:
+      name:
+        type: string
+    type: object
   handlers.envNameRequest:
     properties:
       name:
         type: string
+    type: object
+  handlers.flagConfigRequest:
+    properties:
+      defaultValue: {}
+      enabled:
+        type: boolean
+      overrides:
+        items:
+          $ref: '#/definitions/controllers.OverridePayload'
+        type: array
+      rolloutEnabled:
+        type: boolean
+      rolloutPercentage:
+        type: integer
+      servedValue: {}
     type: object
   handlers.flagCreateRequest:
     properties:
@@ -49,6 +77,28 @@ definitions:
       name:
         type: string
     type: object
+  handlers.segmentCreateRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      rules:
+        items:
+          $ref: '#/definitions/models.SegmentRule'
+        type: array
+    type: object
+  handlers.segmentUpdateRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      rules:
+        items:
+          $ref: '#/definitions/models.SegmentRule'
+        type: array
+    type: object
   handlers.signupRequest:
     properties:
       email:
@@ -60,6 +110,35 @@ definitions:
       password:
         type: string
       username:
+        type: string
+    type: object
+  handlers.updateMemberRoleRequest:
+    properties:
+      roleId:
+        type: integer
+    type: object
+  handlers.updatePermissionsRequest:
+    properties:
+      permissions:
+        items:
+          type: string
+        type: array
+    type: object
+  models.SegmentRule:
+    properties:
+      attribute:
+        type: string
+      createdAt:
+        type: string
+      id:
+        type: integer
+      operator:
+        type: string
+      segmentId:
+        type: integer
+      updatedAt:
+        type: string
+      value:
         type: string
     type: object
   response.ConflictResponse:
@@ -294,6 +373,49 @@ paths:
       summary: List members of an organization with their roles
       tags:
       - Organizations
+  /organizations/{id}/members/{userId}/role:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: New role ID
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.updateMemberRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Update a member's role in an organization
+      tags:
+      - Organizations
   /organizations/{id}/plan:
     patch:
       consumes:
@@ -328,6 +450,135 @@ paths:
       summary: Set an organization's plan
       tags:
       - Organizations
+  /organizations/{id}/roles:
+    get:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: List roles for an organization
+      tags:
+      - Roles
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Role data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.createRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Create a role for an organization
+      tags:
+      - Roles
+  /organizations/{id}/roles/{roleId}:
+    delete:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Role ID
+        in: path
+        name: roleId
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Delete a role from an organization
+      tags:
+      - Roles
+  /organizations/{id}/roles/{roleId}/permissions:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Role ID
+        in: path
+        name: roleId
+        required: true
+        type: integer
+      - description: Permissions list
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.updatePermissionsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Replace all permissions for a role
+      tags:
+      - Roles
   /organizations/{org_id}/projects:
     get:
       parameters:
@@ -824,6 +1075,11 @@ paths:
         name: flag_id
         required: true
         type: integer
+      - description: Environment name
+        in: query
+        name: env
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -843,7 +1099,7 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/response.ErrorResponse'
-      summary: Get a feature flag by ID
+      summary: Get a feature flag by ID with environment config
       tags:
       - Flags
     patch:
@@ -890,9 +1146,370 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/response.ErrorResponse'
-      summary: Update a feature flag (name, value, enabled)
+      summary: Update a feature flag (description only)
       tags:
       - Flags
+  /organizations/{org_id}/projects/{project_id}/flags/{flag_id}/audit:
+    get:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: Flag ID
+        in: path
+        name: flag_id
+        required: true
+        type: integer
+      - description: Environment name
+        in: query
+        name: env
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get audit log for a specific flag
+      tags:
+      - Flags
+  /organizations/{org_id}/projects/{project_id}/flags/{flag_id}/config:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: Flag ID
+        in: path
+        name: flag_id
+        required: true
+        type: integer
+      - description: Environment name
+        in: query
+        name: env
+        required: true
+        type: string
+      - description: Configuration
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.flagConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Update flag configuration for an environment
+      tags:
+      - Flags
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: Flag ID
+        in: path
+        name: flag_id
+        required: true
+        type: integer
+      - description: Environment name
+        in: query
+        name: env
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Create flag configuration for an environment
+      tags:
+      - Flags
+  /organizations/{org_id}/projects/{project_id}/segments:
+    get:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: List segments for a project
+      tags:
+      - Segments
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: Segment definition
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.segmentCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Create a segment
+      tags:
+      - Segments
+  /organizations/{org_id}/projects/{project_id}/segments/{segment_id}:
+    delete:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: Segment ID
+        in: path
+        name: segment_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Delete a segment
+      tags:
+      - Segments
+    get:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: Segment ID
+        in: path
+        name: segment_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get a segment by ID
+      tags:
+      - Segments
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: Segment ID
+        in: path
+        name: segment_id
+        required: true
+        type: integer
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.segmentUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Update a segment
+      tags:
+      - Segments
   /organizations/{org_id}/projects/{project_id}/unarchive:
     post:
       parameters:

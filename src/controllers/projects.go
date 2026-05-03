@@ -46,6 +46,16 @@ func CreateProject(name string, orgID uint, environments []string) (*models.Proj
 		return nil, err
 	}
 
+	for _, envName := range envs {
+		env := models.Environment{
+			ProjectID: p.ID,
+			Name:      envName,
+		}
+		if err := dal.Environment.Create(&env); err != nil {
+			log.Printf("CreateProject: failed to create environment %s: %v", envName, err)
+		}
+	}
+
 	return p, nil
 }
 
