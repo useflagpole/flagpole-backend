@@ -5,31 +5,63 @@ import (
 
 	"flagpole/src/models"
 	"flagpole/src/pkg/crypto"
+	"flagpole/src/pkg/permissions"
 
 	"gorm.io/gorm"
 )
 
 func seedDatabase() {
-	seedRoles()
 	seedAdmin()
 }
 
-func seedRoles() {
-	requiredRoles := []models.Role{
-		{Name: "admin"},
-		{Name: "editor"},
-		{Name: "viewer"},
+// seedOrgDefaultRolesInDB creates default admin/editor/viewer roles for an org and assigns
+// permissions. Mirrors dal.OrgRole.SeedForOrg — duplicated here to avoid circular imports.
+// Pass a *gorm.DB as an optional second argument to run within a transaction.
+func seedOrgDefaultRolesInDB(orgID uint, tx ...*gorm.DB) error {
+	db := DB
+	if len(tx) > 0 && tx[0] != nil {
+		db = tx[0]
+	}
+	type roleSpec struct {
+		name        string
+		isProtected bool
+		perms       map[string]bool
 	}
 
-	for _, role := range requiredRoles {
-		var existing models.Role
-		if err := DB.Where("name = ?", role.Name).First(&existing).Error; err != nil {
-			if err := DB.Create(&role).Error; err != nil {
-				log.Fatalf("failed to seed role '%s': %v", role.Name, err)
+	allPerms := make(map[string]bool, len(permissions.All))
+	for _, p := range permissions.All {
+		allPerms[p.Code] = true
+	}
+
+	specs := []roleSpec{
+		{name: "admin", isProtected: true, perms: allPerms},
+		{name: "editor", isProtected: false, perms: permissions.DefaultEditorPerms},
+		{name: "viewer", isProtected: false, perms: permissions.DefaultViewerPerms},
+	}
+
+	for _, spec := range specs {
+		var role models.OrgRole
+		result := db.Where("organization_id = ? AND name = ?", orgID, spec.name).First(&role)
+		if result.Error != nil {
+			role = models.OrgRole{
+				OrganizationID: orgID,
+				Name:           spec.name,
+				IsDefault:      true,
+				IsProtected:    spec.isProtected,
 			}
-			log.Printf("Seeded role: %s", role.Name)
+			if err := db.Create(&role).Error; err != nil {
+				return err
+			}
+		}
+
+		for code := range spec.perms {
+			db.Exec(`
+				INSERT INTO org.org_role_permissions (org_role_id, permission_code)
+				VALUES (?, ?) ON CONFLICT DO NOTHING
+			`, role.ID, code)
 		}
 	}
+	return nil
 }
 
 func seedAdmin() {
@@ -39,11 +71,6 @@ func seedAdmin() {
 	}
 
 	log.Println("Admin account not found, generating...")
-
-	var adminRole models.Role
-	if err := DB.Where("name = ?", "admin").First(&adminRole).Error; err != nil {
-		log.Fatalf("failed to find admin role: %v", err)
-	}
 
 	password, err := crypto.GenerateRandomPassword(8)
 	if err != nil {
@@ -62,29 +89,37 @@ func seedAdmin() {
 
 	admin := models.User{
 		Email:     "admin@flagpole.dev",
+		Username:  "admin",
 		FirstName: "Admin",
 		LastName:  "Admin",
 		PwdHash:   hash,
 		PwdSalt:   salt,
-		RoleID:    adminRole.ID,
 	}
 
 	if err := DB.Create(&admin).Error; err != nil {
 		log.Fatalf("failed to create admin user: %v", err)
 	}
 
+	var org models.Organization
 	err = DB.Transaction(func(tx *gorm.DB) error {
-		org := models.Organization{
+		org = models.Organization{
 			Name:    "flagpole",
 			OwnerID: admin.ID,
 		}
 		if err := tx.Create(&org).Error; err != nil {
 			return err
 		}
+		if err := seedOrgDefaultRolesInDB(org.ID, tx); err != nil {
+			return err
+		}
+		var adminRole models.OrgRole
+		if err := tx.Where("organization_id = ? AND name = ?", org.ID, "admin").First(&adminRole).Error; err != nil {
+			return err
+		}
 		return tx.Create(&models.UserOrganization{
 			OrganizationID: org.ID,
 			UserID:         admin.ID,
-			RoleID:         adminRole.ID,
+			OrgRoleID:      adminRole.ID,
 		}).Error
 	})
 	if err != nil {

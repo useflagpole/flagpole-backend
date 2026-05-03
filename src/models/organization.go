@@ -8,9 +8,9 @@ type Organization struct {
 	OwnerID uuid.UUID `gorm:"type:uuid;not null"                                                                    json:"ownerId"`
 	Plan    string    `gorm:"not null;default:'free'"                                                               json:"plan"`
 	Owner   User      `gorm:"foreignKey:OwnerID"                                                                    json:"-"`
-	Users   []User    `gorm:"many2many:auth.user_organizations;joinForeignKey:OrganizationID;joinReferences:UserID" json:"-"`
+	Users   []User    `gorm:"many2many:org.user_organizations;joinForeignKey:OrganizationID;joinReferences:UserID" json:"-"`
 }
 
 func (Organization) TableName() string {
-	return "auth.organizations"
+	return "org.organizations"
 }

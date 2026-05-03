@@ -6,6 +6,7 @@ import (
 
 	"flagpole/src/controllers"
 	"flagpole/src/models"
+	"flagpole/src/pkg/permissions"
 	"flagpole/src/pkg/response"
 
 	"github.com/gofiber/fiber/v3"
@@ -101,6 +102,9 @@ func CreateFlag(c fiber.Ctx) (int, response.APIResponse) {
 	if err := c.Bind().JSON(&req); err != nil {
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: "couldn't parse body"}
 	}
+	if status, errResp := requirePermission(proj.OrganizationID, permissions.FlagCreate, c); errResp != nil {
+		return status, errResp
+	}
 	flag, err := controllers.CreateFlag(proj.ID, req.Key, req.Description, models.FlagType(req.FlagType), req.Value)
 	if err != nil {
 		return flagErr(err)
@@ -152,15 +156,20 @@ func UpdateFlag(c fiber.Ctx) (int, response.APIResponse) {
 	if err := c.Bind().JSON(&req); err != nil {
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: "couldn't parse body"}
 	}
+	perm := permissions.FlagUpdate
 	action := models.ActionFlagUpdate
 	detail := "Updated flag '" + flag.Key + "'"
 	if req.Enabled != nil {
+		perm = permissions.FlagToggle
 		action = models.ActionFlagToggle
 		state := "Disabled"
 		if *req.Enabled {
 			state = "Enabled"
 		}
 		detail = state + " flag '" + flag.Key + "'"
+	}
+	if status, errResp := requirePermission(proj.OrganizationID, perm, c); errResp != nil {
+		return status, errResp
 	}
 	updated, err := controllers.UpdateFlag(flag, req.Description, req.Value, req.Enabled)
 	if err != nil {
@@ -186,6 +195,9 @@ func UpdateFlag(c fiber.Ctx) (int, response.APIResponse) {
 func DeleteFlag(c fiber.Ctx) (int, response.APIResponse) {
 	flag, proj, status, errResp := resolveFlag(c)
 	if errResp != nil {
+		return status, errResp
+	}
+	if status, errResp := requirePermission(proj.OrganizationID, permissions.FlagDelete, c); errResp != nil {
 		return status, errResp
 	}
 	if err := controllers.DeleteFlag(flag); err != nil {

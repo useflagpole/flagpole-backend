@@ -99,3 +99,6 @@ $RECYCLE.BIN/
 
 # Environment variables
 .env
+
+# Agent guidelines
+AGENTS.md

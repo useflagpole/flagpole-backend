@@ -8,6 +8,7 @@ import (
 	"flagpole/src/dal"
 	"flagpole/src/models"
 	"flagpole/src/pkg/jwtutil"
+	"flagpole/src/pkg/permissions"
 	"flagpole/src/pkg/response"
 
 	"github.com/gofiber/fiber/v3"
@@ -17,17 +18,9 @@ type envNameRequest struct {
 	Name string `json:"name"`
 }
 
-func requireAdmin(orgID uint, c fiber.Ctx) (int, response.APIResponse) {
-	if !dal.Organization.IsAdmin(orgID, jwtutil.UserID(c)) {
-		return fiber.StatusForbidden, response.ErrorResponse{Error: "forbidden: admin role required"}
-	}
-	return 0, nil
-}
-
-func requireAdminOrEditor(orgID uint, c fiber.Ctx) (int, response.APIResponse) {
-	role, err := dal.Organization.GetMemberRole(orgID, jwtutil.UserID(c))
-	if err != nil || (role != "admin" && role != "editor") {
-		return fiber.StatusForbidden, response.ErrorResponse{Error: "forbidden: admin or editor role required"}
+func requirePermission(orgID uint, perm string, c fiber.Ctx) (int, response.APIResponse) {
+	if !dal.Organization.HasPermission(orgID, jwtutil.UserID(c), perm) {
+		return fiber.StatusForbidden, response.ErrorResponse{Error: "forbidden"}
 	}
 	return 0, nil
 }
@@ -145,6 +138,9 @@ func CreateEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 	if errResp != nil {
 		return status, errResp
 	}
+	if status, errResp := requirePermission(proj.OrganizationID, permissions.EnvCreate, c); errResp != nil {
+		return status, errResp
+	}
 	var req envNameRequest
 	if err := c.Bind().JSON(&req); err != nil || req.Name == "" {
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: "name is required"}
@@ -153,6 +149,7 @@ func CreateEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 	if err != nil {
 		return envErr(err)
 	}
+	logAudit(c, proj.OrganizationID, &proj.ID, models.ActionEnvCreate, req.Name, "Created environment '"+req.Name+"'", "")
 	return fiber.StatusCreated, response.DataResponse{Data: envs}
 }
 
@@ -175,14 +172,19 @@ func RenameEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 	if errResp != nil {
 		return status, errResp
 	}
+	if status, errResp := requirePermission(proj.OrganizationID, permissions.EnvRename, c); errResp != nil {
+		return status, errResp
+	}
 	var req envNameRequest
 	if err := c.Bind().JSON(&req); err != nil || req.Name == "" {
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: "name is required"}
 	}
-	envs, err := controllers.RenameEnvironment(proj, c.Params("env_name"), req.Name)
+	oldName := c.Params("env_name")
+	envs, err := controllers.RenameEnvironment(proj, oldName, req.Name)
 	if err != nil {
 		return envErr(err)
 	}
+	logAudit(c, proj.OrganizationID, &proj.ID, models.ActionEnvRename, req.Name, "Renamed environment from '"+oldName+"' to '"+req.Name+"'", "")
 	return fiber.StatusOK, response.DataResponse{Data: envs}
 }
 
@@ -203,9 +205,14 @@ func DeleteEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 	if errResp != nil {
 		return status, errResp
 	}
-	envs, err := controllers.DeleteEnvironment(proj, c.Params("env_name"))
+	if status, errResp := requirePermission(proj.OrganizationID, permissions.EnvDelete, c); errResp != nil {
+		return status, errResp
+	}
+	envName := c.Params("env_name")
+	envs, err := controllers.DeleteEnvironment(proj, envName)
 	if err != nil {
 		return envErr(err)
 	}
+	logAudit(c, proj.OrganizationID, &proj.ID, models.ActionEnvDelete, envName, "Deleted environment '"+envName+"'", "")
 	return fiber.StatusOK, response.DataResponse{Data: envs}
 }

@@ -9,5 +9,5 @@ type Project struct {
 }
 
 func (Project) TableName() string {
-	return "auth.projects"
+	return "project.projects"
 }

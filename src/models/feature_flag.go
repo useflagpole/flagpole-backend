@@ -26,7 +26,7 @@ type FeatureFlag struct {
 }
 
 func (FeatureFlag) TableName() string {
-	return "auth.feature_flags"
+	return "project.feature_flags"
 }
 
 type FlagValue struct {

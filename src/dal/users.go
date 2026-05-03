@@ -52,9 +52,9 @@ func (userDAL) GetOrgRoles(userID uuid.UUID) (map[uint]string, error) {
 	}
 	var rows []row
 	err := database.DB.
-		Table("auth.user_organizations uo").
+		Table("org.user_organizations uo").
 		Select("uo.organization_id, r.name as role_name").
-		Joins("JOIN auth.roles r ON r.id = uo.role_id").
+		Joins("JOIN org.org_roles r ON r.id = uo.org_role_id").
 		Where("uo.user_id = ?", userID).
 		Scan(&rows).Error
 	if err != nil {
