@@ -21,6 +21,18 @@ const (
 	ActionOrgRename = "org.rename"
 	ActionOrgInvite = "org.invite"
 	ActionOrgJoin   = "org.join"
+
+	ActionRoleCreate      = "role.create"
+	ActionRoleDelete      = "role.delete"
+	ActionRoleUpdatePerms = "role.update_perms"
+	ActionMemberRole      = "member.role"
+
+	ActionEnvCreate = "env.create"
+	ActionEnvRename = "env.rename"
+	ActionEnvDelete = "env.delete"
+
+	ActionOrgDelete = "org.delete"
+	ActionOrgPlan   = "org.plan"
 )
 
 type AuditLog struct {

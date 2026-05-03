@@ -155,6 +155,8 @@ func SetOrganizationPlan(c fiber.Ctx) (int, response.APIResponse) {
 		return fiber.StatusInternalServerError, response.Error500
 	}
 
+	logAudit(c, uint(id), nil, models.ActionOrgPlan, req.Plan, "Set organization plan to '"+req.Plan+"'", "")
+
 	return fiber.StatusOK, response.DataResponse{Data: fiber.Map{"plan": req.Plan}}
 }
 
@@ -286,6 +288,8 @@ func UpdateMemberRole(c fiber.Ctx) (int, response.APIResponse) {
 		return fiber.StatusInternalServerError, response.ErrorResponse{Error: err.Error()}
 	}
 
+	logAudit(c, uint(orgID), nil, models.ActionMemberRole, role.Name, "Changed member '"+userID+"' role to '"+role.Name+"'", "")
+
 	return fiber.StatusOK, response.DataResponse{Data: fiber.Map{"roleId": req.RoleID}}
 }
 
@@ -315,6 +319,8 @@ func DeleteOrganization(c fiber.Ctx) (int, response.APIResponse) {
 	if err := controllers.DeleteOrganization(org); err != nil {
 		return fiber.StatusInternalServerError, response.Error500
 	}
+
+	logAudit(c, org.ID, nil, models.ActionOrgDelete, org.Name, "Deleted organization '"+org.Name+"'", "")
 
 	return fiber.StatusNoContent, nil
 }

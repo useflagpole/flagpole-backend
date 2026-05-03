@@ -115,6 +115,8 @@ func CreateOrgRole(c fiber.Ctx) (int, response.APIResponse) {
 		return fiber.StatusInternalServerError, response.Error500
 	}
 
+	logAudit(c, orgID, nil, models.ActionRoleCreate, role.Name, "Created role '"+role.Name+"'", "")
+
 	return fiber.StatusCreated, response.DataResponse{Data: roleWithPermissions{
 		ID:          role.ID,
 		Name:        role.Name,
@@ -156,9 +158,12 @@ func DeleteOrgRole(c fiber.Ctx) (int, response.APIResponse) {
 		return fiber.StatusNotFound, response.ErrorResponse{Error: "role not found"}
 	}
 
+	roleName := role.Name
 	if err := dal.OrgRole.Delete(role); err != nil {
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: err.Error()}
 	}
+
+	logAudit(c, orgID, nil, models.ActionRoleDelete, roleName, "Deleted role '"+roleName+"'", "")
 
 	return fiber.StatusNoContent, nil
 }
@@ -250,6 +255,8 @@ func UpdateOrgRolePermissions(c fiber.Ctx) (int, response.APIResponse) {
 	if err != nil {
 		return fiber.StatusInternalServerError, response.Error500
 	}
+
+	logAudit(c, orgID, nil, models.ActionRoleUpdatePerms, role.Name, "Updated permissions for role '"+role.Name+"'", "")
 
 	return fiber.StatusOK, response.DataResponse{Data: roleWithPermissions{
 		ID:          role.ID,
