@@ -111,7 +111,7 @@ func ListEnvironments(c fiber.Ctx) (int, response.APIResponse) {
 	if errResp != nil {
 		return status, errResp
 	}
-	envs, err := controllers.ListEnvironments(proj)
+	envs, err := controllers.ListEnvironments(proj.ID)
 	if err != nil {
 		return fiber.StatusInternalServerError, response.Error500
 	}
@@ -145,7 +145,7 @@ func CreateEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 	if err := c.Bind().JSON(&req); err != nil || req.Name == "" {
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: "name is required"}
 	}
-	envs, err := controllers.CreateEnvironment(proj, req.Name)
+	envs, err := controllers.CreateEnvironment(proj.ID, req.Name)
 	if err != nil {
 		return envErr(err)
 	}
@@ -180,7 +180,7 @@ func RenameEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: "name is required"}
 	}
 	oldName := c.Params("env_name")
-	envs, err := controllers.RenameEnvironment(proj, oldName, req.Name)
+	envs, err := controllers.RenameEnvironment(proj.ID, oldName, req.Name)
 	if err != nil {
 		return envErr(err)
 	}
@@ -209,7 +209,7 @@ func DeleteEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 		return status, errResp
 	}
 	envName := c.Params("env_name")
-	envs, err := controllers.DeleteEnvironment(proj, envName)
+	envs, err := controllers.DeleteEnvironment(proj.ID, envName)
 	if err != nil {
 		return envErr(err)
 	}

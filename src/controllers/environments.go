@@ -1,8 +1,8 @@
 package controllers
 
 import (
-	"encoding/json"
 	"errors"
+	"fmt"
 
 	"flagpole/src/dal"
 	"flagpole/src/models"
@@ -10,99 +10,97 @@ import (
 
 const MAX_ENVIRONMENTS = 5
 
-var ErrMaxEnvironments    = errors.New("maximum of 5 environments reached")
-var ErrEnvAlreadyExists   = errors.New("environment already exists")
-var ErrEnvNotFound        = errors.New("environment not found")
-var ErrEnvProtected       = errors.New("production environment is protected")
+var (
+	ErrMaxEnvironments  = errors.New("maximum of " + fmt.Sprint(MAX_ENVIRONMENTS) + " environments reached")
+	ErrEnvAlreadyExists = errors.New("environment already exists")
+	ErrEnvNotFound      = errors.New("environment not found")
+	ErrEnvProtected     = errors.New("production environment is protected")
+)
 
-func parseEnvs(proj *models.Project) ([]string, error) {
-	var envs []string
-	if err := json.Unmarshal([]byte(proj.Environments), &envs); err != nil {
-		return nil, err
-	}
-	return envs, nil
-}
-
-func persistEnvs(proj *models.Project, envs []string) ([]string, error) {
-	raw, err := json.Marshal(envs)
+func ListEnvironments(projectID uint) ([]string, error) {
+	envs, err := dal.Environment.ListByProject(projectID)
 	if err != nil {
 		return nil, err
 	}
-	proj.Environments = string(raw)
-	if err := dal.Project.Save(proj); err != nil {
+	names := make([]string, len(envs))
+	for i, e := range envs {
+		names[i] = e.Name
+	}
+	return names, nil
+}
+
+func CreateEnvironment(projectID uint, name string) ([]string, error) {
+	if err := models.ValidateEnvironmentName(name); err != nil {
 		return nil, err
 	}
-	return envs, nil
-}
-
-func ListEnvironments(proj *models.Project) ([]string, error) {
-	return parseEnvs(proj)
-}
-
-func CreateEnvironment(proj *models.Project, name string) ([]string, error) {
-	envs, err := parseEnvs(proj)
+	if dal.Environment.NameExists(projectID, name) {
+		return nil, ErrEnvAlreadyExists
+	}
+	envs, err := ListEnvironments(projectID)
 	if err != nil {
 		return nil, err
 	}
 	if len(envs) >= MAX_ENVIRONMENTS {
 		return nil, ErrMaxEnvironments
 	}
-	for _, e := range envs {
-		if e == name {
-			return nil, ErrEnvAlreadyExists
-		}
+	env := &models.Environment{
+		ProjectID: projectID,
+		Name:      name,
 	}
-	return persistEnvs(proj, append(envs, name))
+	if err := dal.Environment.Create(env); err != nil {
+		return nil, err
+	}
+	envs = append(envs, name)
+	return envs, nil
 }
 
-func RenameEnvironment(proj *models.Project, oldName, newName string) ([]string, error) {
+func RenameEnvironment(projectID uint, oldName, newName string) ([]string, error) {
 	if oldName == "production" {
 		return nil, ErrEnvProtected
 	}
-	envs, err := parseEnvs(proj)
-	if err != nil {
+	if err := models.ValidateEnvironmentName(newName); err != nil {
 		return nil, err
 	}
-	for _, e := range envs {
-		if e == newName {
-			return nil, ErrEnvAlreadyExists
-		}
-	}
-	found := false
-	updated := make([]string, len(envs))
-	for i, e := range envs {
-		if e == oldName {
-			updated[i] = newName
-			found = true
-		} else {
-			updated[i] = e
-		}
-	}
-	if !found {
+	env, err := dal.Environment.GetByName(projectID, oldName)
+	if err != nil {
 		return nil, ErrEnvNotFound
 	}
-	return persistEnvs(proj, updated)
+	if dal.Environment.NameExists(projectID, newName) {
+		return nil, ErrEnvAlreadyExists
+	}
+	env.Name = newName
+	if err := dal.Environment.Save(env); err != nil {
+		return nil, err
+	}
+	return ListEnvironments(projectID)
 }
 
-func DeleteEnvironment(proj *models.Project, name string) ([]string, error) {
+func DeleteEnvironment(projectID uint, name string) ([]string, error) {
 	if name == "production" {
 		return nil, ErrEnvProtected
 	}
-	envs, err := parseEnvs(proj)
+	env, err := dal.Environment.GetByName(projectID, name)
+	if err != nil {
+		return nil, ErrEnvNotFound
+	}
+
+	if err := dal.FlagEnvConfig.DeleteByEnv(projectID, name); err != nil {
+		return nil, err
+	}
+
+	flags, err := dal.FeatureFlag.ListByProject(projectID)
 	if err != nil {
 		return nil, err
 	}
-	found := false
-	updated := make([]string, 0, len(envs))
-	for _, e := range envs {
-		if e == name {
-			found = true
-		} else {
-			updated = append(updated, e)
+	for _, flag := range flags {
+		if err := dal.FlagEnvOverride.RemoveByEnv(flag.ID, name); err != nil {
+			return nil, err
 		}
 	}
-	if !found {
-		return nil, ErrEnvNotFound
+
+	if err := dal.Environment.Delete(env); err != nil {
+		return nil, err
 	}
-	return persistEnvs(proj, updated)
+
+	return ListEnvironments(projectID)
 }

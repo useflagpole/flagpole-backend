@@ -11,6 +11,14 @@ const (
 	ActionFlagToggle  = "flag.toggle"
 	ActionFlagUpdate  = "flag.update"
 	ActionFlagDelete  = "flag.delete"
+	ActionFlagRollout = "flag.rollout"
+	ActionFlagValues  = "flag.values"
+
+	ActionSegmentCreate       = "segment.create"
+	ActionSegmentUpdate       = "segment.update"
+	ActionSegmentDelete       = "segment.delete"
+	ActionFlagOverrideAdd     = "flag.override_add"
+	ActionFlagOverrideRemove  = "flag.override_remove"
 
 	ActionProjectCreate    = "project.create"
 	ActionProjectRename    = "project.rename"

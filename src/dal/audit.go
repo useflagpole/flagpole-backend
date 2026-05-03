@@ -43,6 +43,25 @@ func (auditDAL) ListByProject(projectID uint) ([]AuditEntry, error) {
 	return entries, err
 }
 
+func (auditDAL) ListByTarget(projectID uint, target string, env string) ([]AuditEntry, error) {
+	var entries []AuditEntry
+	query := `
+		SELECT al.id, al.created_at, al.org_id, al.project_id,
+		       COALESCE(u.username, al.actor_email) AS actor,
+		       al.action, al.target, al.detail, al.env
+		FROM audit.audit_logs al
+		LEFT JOIN auth.users u ON u.id = al.actor_id
+		WHERE al.project_id = ? AND al.target = ?`
+	args := []interface{}{projectID, target}
+	if env != "" {
+		query += ` AND (al.env = ? OR al.env = '')`
+		args = append(args, env)
+	}
+	query += ` ORDER BY al.created_at DESC`
+	err := database.DB.Raw(query, args...).Scan(&entries).Error
+	return entries, err
+}
+
 func (auditDAL) ListByOrg(orgID uint) ([]AuditEntry, error) {
 	var entries []AuditEntry
 	err := database.DB.Raw(`

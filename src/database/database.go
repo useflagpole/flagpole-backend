@@ -39,11 +39,19 @@ func migrate() {
 		&models.OrgRole{},
 		&models.OrgRolePermission{},
 		&models.Project{},
+		&models.Environment{},
 		&models.FeatureFlag{},
+		&models.FlagEnvironmentConfig{},
+		&models.FlagEnvironmentOverride{},
+		&models.Segment{},
+		&models.SegmentRule{},
+		&models.FlagSegmentOverride{},
 		&models.AuditLog{},
 	); err != nil {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
+
+	migrateFeatureFlagValues()
 
 	ensureOwnerMembershipTrigger()
 	log.Println("Migrations applied")
@@ -78,4 +86,42 @@ func ensureOwnerMembershipTrigger() {
 			log.Fatalf("failed to create owner membership trigger: %v", err)
 		}
 	}
+}
+
+func migrateFeatureFlagValues() {
+	// Migrate existing flag configs to flag_environment_configs table (assign to 'production' env)
+	DB.Exec(`
+		INSERT INTO project.flag_environment_configs 
+		(flag_id, environment_name, enabled, rollout_enabled, rollout_percentage, default_value, served_value, created_at, updated_at)
+		SELECT 
+			ff.id, 'production', 
+			COALESCE(ff.enabled, false), 
+			COALESCE(ff.rollout_enabled, false), 
+			COALESCE(ff.rollout_percentage, 0),
+			COALESCE(ff.default_value, 'false'), 
+			COALESCE(ff.served_value, 'false'),
+			NOW(), NOW()
+		FROM project.feature_flags ff
+		WHERE ff.enabled IS NOT NULL
+		ON CONFLICT DO NOTHING
+	`)
+
+	// Migrate existing segment overrides to flag_environment_overrides table (assign to 'production' env)
+	DB.Exec(`
+		INSERT INTO project.flag_environment_overrides
+		(flag_id, environment_name, segment_id, value, enabled, created_at, updated_at)
+		SELECT 
+			fso.flag_id, 'production', fso.segment_id, fso.value, fso.enabled,
+			NOW(), NOW()
+		FROM project.flag_segment_overrides fso
+		ON CONFLICT DO NOTHING
+	`)
+
+	// Drop old columns from feature_flags table after migration
+	DB.Exec("ALTER TABLE project.feature_flags DROP COLUMN IF EXISTS raw_value")
+	DB.Exec("ALTER TABLE project.feature_flags DROP COLUMN IF EXISTS default_value")
+	DB.Exec("ALTER TABLE project.feature_flags DROP COLUMN IF EXISTS served_value")
+	DB.Exec("ALTER TABLE project.feature_flags DROP COLUMN IF EXISTS rollout_enabled")
+	DB.Exec("ALTER TABLE project.feature_flags DROP COLUMN IF EXISTS rollout_percentage")
+	DB.Exec("ALTER TABLE project.feature_flags DROP COLUMN IF EXISTS enabled")
 }

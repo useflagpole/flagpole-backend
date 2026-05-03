@@ -1,8 +1,8 @@
 package models
 
 import (
-	"encoding/json"
 	"errors"
+	"fmt"
 )
 
 type FlagType string
@@ -17,12 +17,10 @@ const FLAG_STRING_MAX_LEN = 50
 
 type FeatureFlag struct {
 	Base
-	ProjectID uint   `gorm:"not null;uniqueIndex:idx_flag_key_project"   json:"projectId"`
+	ProjectID   uint   `gorm:"not null;uniqueIndex:idx_flag_key_project"   json:"projectId"`
 	Key         string `gorm:"not null;uniqueIndex:idx_flag_key_project"   json:"key"`
 	Description string `gorm:"not null;default:''"                         json:"description"`
-	FlagType  string `gorm:"not null"                                    json:"type"`
-	RawValue  string `gorm:"not null"                                    json:"-"`
-	Enabled   bool   `gorm:"not null;default:true"                       json:"enabled"`
+	FlagType    string `gorm:"not null"                                    json:"type"`
 }
 
 func (FeatureFlag) TableName() string {
@@ -32,14 +30,6 @@ func (FeatureFlag) TableName() string {
 type FlagValue struct {
 	Type  FlagType    `json:"type"`
 	Value interface{} `json:"value"`
-}
-
-func (f FeatureFlag) ParsedValue() (interface{}, error) {
-	var val interface{}
-	if err := json.Unmarshal([]byte(f.RawValue), &val); err != nil {
-		return nil, err
-	}
-	return val, nil
 }
 
 func ValidateValue(flagType FlagType, value interface{}) error {
@@ -54,7 +44,7 @@ func ValidateValue(flagType FlagType, value interface{}) error {
 			return errors.New("value must be a string")
 		}
 		if len(s) > FLAG_STRING_MAX_LEN {
-			return errors.New("string value exceeds 50 characters")
+			return errors.New("string value exceeds " + fmt.Sprint(FLAG_STRING_MAX_LEN) + " characters")
 		}
 	case FLAG_TYPE_NUMBER:
 		if _, ok := value.(float64); !ok {
