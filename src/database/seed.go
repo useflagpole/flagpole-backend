@@ -14,13 +14,14 @@ func seedDatabase() {
 	seedAdmin()
 }
 
-func seedOrgDefaultRolesInDB(orgID uint) error {
-	return seedOrgDefaultRolesInTx(DB, orgID)
-}
-
-// seedOrgDefaultRolesInTx creates default admin/editor/viewer roles for an org and assigns
+// seedOrgDefaultRolesInDB creates default admin/editor/viewer roles for an org and assigns
 // permissions. Mirrors dal.OrgRole.SeedForOrg — duplicated here to avoid circular imports.
-func seedOrgDefaultRolesInTx(db *gorm.DB, orgID uint) error {
+// Pass a *gorm.DB as an optional second argument to run within a transaction.
+func seedOrgDefaultRolesInDB(orgID uint, tx ...*gorm.DB) error {
+	db := DB
+	if len(tx) > 0 && tx[0] != nil {
+		db = tx[0]
+	}
 	type roleSpec struct {
 		name        string
 		isProtected bool
@@ -108,7 +109,7 @@ func seedAdmin() {
 		if err := tx.Create(&org).Error; err != nil {
 			return err
 		}
-		if err := seedOrgDefaultRolesInTx(tx, org.ID); err != nil {
+		if err := seedOrgDefaultRolesInDB(org.ID, tx); err != nil {
 			return err
 		}
 		var adminRole models.OrgRole

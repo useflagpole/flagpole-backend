@@ -61,10 +61,10 @@ func CreateOrganization(name string, userID uuid.UUID) (*models.Organization, er
 		if err := tx.Create(org).Error; err != nil {
 			return err
 		}
-		if err := dal.OrgRole.SeedForOrgTx(tx, org.ID); err != nil {
+		if err := dal.OrgRole.SeedForOrg(org.ID, tx); err != nil {
 			return err
 		}
-		adminRole, err := dal.OrgRole.GetAdminRoleTx(tx, org.ID)
+		adminRole, err := dal.OrgRole.GetAdminRole(org.ID, tx)
 		if err != nil {
 			return err
 		}

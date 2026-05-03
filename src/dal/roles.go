@@ -14,6 +14,13 @@ type orgRoleDAL struct{}
 
 var OrgRole = orgRoleDAL{}
 
+func (orgRoleDAL) db(tx ...*gorm.DB) *gorm.DB {
+	if len(tx) > 0 && tx[0] != nil {
+		return tx[0]
+	}
+	return database.DB
+}
+
 func (orgRoleDAL) GetByID(id uint) (*models.OrgRole, error) {
 	var role models.OrgRole
 	if err := database.DB.First(&role, id).Error; err != nil {
@@ -22,13 +29,9 @@ func (orgRoleDAL) GetByID(id uint) (*models.OrgRole, error) {
 	return &role, nil
 }
 
-func (orgRoleDAL) GetAdminRole(orgID uint) (*models.OrgRole, error) {
-	return OrgRole.GetAdminRoleTx(database.DB, orgID)
-}
-
-func (orgRoleDAL) GetAdminRoleTx(db *gorm.DB, orgID uint) (*models.OrgRole, error) {
+func (orgRoleDAL) GetAdminRole(orgID uint, tx ...*gorm.DB) (*models.OrgRole, error) {
 	var role models.OrgRole
-	err := db.Where("organization_id = ? AND name = ?", orgID, "admin").First(&role).Error
+	err := OrgRole.db(tx...).Where("organization_id = ? AND name = ?", orgID, "admin").First(&role).Error
 	return &role, err
 }
 
@@ -71,13 +74,12 @@ func (orgRoleDAL) SetPermission(orgRoleID uint, code string, enabled bool) error
 		Delete(&models.OrgRolePermission{}).Error
 }
 
-func (orgRoleDAL) SeedForOrg(orgID uint) error {
-	return OrgRole.SeedForOrgTx(database.DB, orgID)
-}
-
-// SeedForOrgTx creates the default admin/editor/viewer roles for an org and assigns
+// SeedForOrg creates the default admin/editor/viewer roles for an org and assigns
 // their permissions. Idempotent — safe to call on existing orgs.
-func (orgRoleDAL) SeedForOrgTx(db *gorm.DB, orgID uint) error {
+// Pass a *gorm.DB as an optional second argument to run within a transaction.
+func (orgRoleDAL) SeedForOrg(orgID uint, tx ...*gorm.DB) error {
+	db := OrgRole.db(tx...)
+
 	type roleSpec struct {
 		name        string
 		isProtected bool
