@@ -15,12 +15,14 @@ import (
 type segmentCreateRequest struct {
 	Name        string                 `json:"name"`
 	Description string                 `json:"description"`
+	MatchType   string                 `json:"matchType"`
 	Rules       []models.SegmentRule   `json:"rules"`
 }
 
 type segmentUpdateRequest struct {
 	Name        *string               `json:"name"`
 	Description *string               `json:"description"`
+	MatchType   *string               `json:"matchType"`
 	Rules       *[]models.SegmentRule `json:"rules"`
 }
 
@@ -100,7 +102,7 @@ func CreateSegment(c fiber.Ctx) (int, response.APIResponse) {
 	if status, errResp := requirePermission(proj.OrganizationID, permissions.SegmentCreate, c); errResp != nil {
 		return status, errResp
 	}
-	seg, err := controllers.CreateSegment(proj.ID, req.Name, req.Description, req.Rules)
+	seg, err := controllers.CreateSegment(proj.ID, req.Name, req.Description, req.MatchType, req.Rules)
 	if err != nil {
 		return segmentErr(err)
 	}
@@ -163,11 +165,15 @@ func UpdateSegment(c fiber.Ctx) (int, response.APIResponse) {
 	if req.Description != nil {
 		desc = *req.Description
 	}
+	matchType := ""
+	if req.MatchType != nil {
+		matchType = *req.MatchType
+	}
 	var rules []models.SegmentRule
 	if req.Rules != nil {
 		rules = *req.Rules
 	}
-	updated, err := controllers.UpdateSegment(seg, name, desc, rules)
+	updated, err := controllers.UpdateSegment(seg, name, desc, matchType, rules)
 	if err != nil {
 		return segmentErr(err)
 	}

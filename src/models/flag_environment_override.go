@@ -11,6 +11,7 @@ type FlagEnvironmentOverride struct {
 	SegmentID       uint   `gorm:"not null;uniqueIndex:idx_flag_env_seg"`
 	Value           string `gorm:"not null"`
 	Enabled         bool   `gorm:"not null;default:true"`
+	Priority        int    `gorm:"default:0"`
 }
 
 func (FlagEnvironmentOverride) TableName() string {

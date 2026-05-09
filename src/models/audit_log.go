@@ -19,6 +19,7 @@ const (
 	ActionSegmentDelete       = "segment.delete"
 	ActionFlagOverrideAdd     = "flag.override_add"
 	ActionFlagOverrideRemove  = "flag.override_remove"
+	ActionFlagOverrideUpdate  = "flag.override_update"
 
 	ActionProjectCreate    = "project.create"
 	ActionProjectRename    = "project.rename"

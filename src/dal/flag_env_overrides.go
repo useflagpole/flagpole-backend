@@ -11,11 +11,11 @@ var FlagEnvOverride = flagEnvOverrideDAL{}
 
 func (flagEnvOverrideDAL) ListByFlagAndEnv(flagID uint, env string) ([]models.FlagEnvironmentOverride, error) {
 	var overrides []models.FlagEnvironmentOverride
-	err := database.DB.Where("flag_id = ? AND environment_name = ?", flagID, env).Find(&overrides).Error
+	err := database.DB.Where("flag_id = ? AND environment_name = ?", flagID, env).Order("priority ASC").Find(&overrides).Error
 	return overrides, err
 }
 
-func (flagEnvOverrideDAL) SetOverride(flagID uint, env string, segmentID uint, value string, enabled bool) error {
+func (flagEnvOverrideDAL) SetOverride(flagID uint, env string, segmentID uint, value string, enabled bool, priority int) error {
 	var override models.FlagEnvironmentOverride
 	err := database.DB.Where("flag_id = ? AND environment_name = ? AND segment_id = ?", flagID, env, segmentID).First(&override).Error
 	if err != nil {
@@ -25,11 +25,13 @@ func (flagEnvOverrideDAL) SetOverride(flagID uint, env string, segmentID uint, v
 			SegmentID:       segmentID,
 			Value:           value,
 			Enabled:         enabled,
+			Priority:        priority,
 		}
 		return database.DB.Create(&override).Error
 	}
 	override.Value = value
 	override.Enabled = enabled
+	override.Priority = priority
 	return database.DB.Save(&override).Error
 }
 

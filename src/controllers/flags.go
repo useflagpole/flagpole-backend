@@ -85,19 +85,27 @@ func UpdateFlagMetadata(flag *models.FeatureFlag, description *string) (*models.
 }
 
 type FlagConfigChanges struct {
-	EnabledChanged     *bool
-	RolloutToggled     *bool
-	RolloutPctChanged  bool
-	RolloutPct         int
-	ValuesChanged      bool
-	OverridesAdded     []uint
-	OverridesRemoved   []uint
+	EnabledChanged       *bool
+	RolloutToggled       *bool
+	RolloutPctChanged    bool
+	RolloutPct           int
+	ValuesChanged        bool
+	OverridesAdded       []uint
+	OverridesRemoved     []uint
+	OverridesValueChanged []OverrideValueChange
+}
+
+type OverrideValueChange struct {
+	SegmentID uint
+	OldValue  string
+	NewValue  string
 }
 
 type OverridePayload struct {
 	SegmentID uint        `json:"segmentId"`
 	Value     interface{} `json:"value"`
 	Enabled   bool        `json:"enabled"`
+	Priority  int         `json:"priority"`
 }
 
 func GetFlagDetail(projectID uint, flagID uint, env string) (*FlagDetailDTO, error) {
@@ -131,7 +139,7 @@ func GetFlagDetail(projectID uint, flagID uint, env string) (*FlagDetailDTO, err
 	}
 
 	overrideDTOs := make([]SegmentOverrideDTO, 0, len(overrides))
-	for _, o := range overrides {
+	for i, o := range overrides {
 		val, _ := o.ParsedValue()
 		seg, err := dal.Segment.GetByID(o.SegmentID, projectID)
 		if err != nil {
@@ -141,9 +149,9 @@ func GetFlagDetail(projectID uint, flagID uint, env string) (*FlagDetailDTO, err
 			ID:        o.ID,
 			SegmentID: o.SegmentID,
 			Name:      seg.Name,
-			UserCount: seg.UserCount,
 			Value:     val,
 			Enabled:   o.Enabled,
+			Priority:  i + 1,
 		})
 	}
 
@@ -183,9 +191,9 @@ type SegmentOverrideDTO struct {
 	ID        uint        `json:"id"`
 	SegmentID uint        `json:"segmentId"`
 	Name      string      `json:"name"`
-	UserCount int         `json:"userCount"`
 	Value     interface{} `json:"value"`
 	Enabled   bool        `json:"enabled"`
+	Priority  int         `json:"priority"`
 }
 
 func CreateFlagEnvConfig(flagID uint, env string, projectID uint, flagType string) (*models.FlagEnvironmentConfig, error) {
@@ -291,21 +299,37 @@ func UpdateFlagConfig(flagID uint, env string,
 		if err != nil {
 			return nil, err
 		}
-		existingMap := make(map[uint]bool)
-		for _, e := range existing {
-			existingMap[e.SegmentID] = true
+		existingMap := make(map[uint]*models.FlagEnvironmentOverride)
+		for i := range existing {
+			existingMap[existing[i].SegmentID] = &existing[i]
 		}
 
-		for _, o := range overrides {
+		for i, o := range overrides {
 			raw, err := json.Marshal(o.Value)
 			if err != nil {
 				return nil, err
 			}
-			if err := dal.FlagEnvOverride.SetOverride(flagID, env, o.SegmentID, string(raw), o.Enabled); err != nil {
-				return nil, err
+			priority := o.Priority
+			if priority == 0 {
+				priority = i + 1
 			}
-			if !existingMap[o.SegmentID] {
+			if _, ok := existingMap[o.SegmentID]; !ok {
+				if err := dal.FlagEnvOverride.SetOverride(flagID, env, o.SegmentID, string(raw), o.Enabled, priority); err != nil {
+					return nil, err
+				}
 				changes.OverridesAdded = append(changes.OverridesAdded, o.SegmentID)
+			} else {
+				oldVal := existingMap[o.SegmentID].Value
+				if string(raw) != oldVal {
+					changes.OverridesValueChanged = append(changes.OverridesValueChanged, OverrideValueChange{
+						SegmentID: o.SegmentID,
+						OldValue:  oldVal,
+						NewValue:  string(raw),
+					})
+				}
+				if err := dal.FlagEnvOverride.SetOverride(flagID, env, o.SegmentID, string(raw), o.Enabled, priority); err != nil {
+					return nil, err
+				}
 			}
 			delete(existingMap, o.SegmentID)
 		}

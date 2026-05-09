@@ -45,13 +45,13 @@ func migrate() {
 		&models.FlagEnvironmentOverride{},
 		&models.Segment{},
 		&models.SegmentRule{},
-		&models.FlagSegmentOverride{},
 		&models.AuditLog{},
 	); err != nil {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 
 	migrateFeatureFlagValues()
+	migrateSegmentOverrides()
 
 	ensureOwnerMembershipTrigger()
 	log.Println("Migrations applied")
@@ -124,4 +124,15 @@ func migrateFeatureFlagValues() {
 	DB.Exec("ALTER TABLE project.feature_flags DROP COLUMN IF EXISTS rollout_enabled")
 	DB.Exec("ALTER TABLE project.feature_flags DROP COLUMN IF EXISTS rollout_percentage")
 	DB.Exec("ALTER TABLE project.feature_flags DROP COLUMN IF EXISTS enabled")
+}
+
+func migrateSegmentOverrides() {
+	// Add match_type to segments if not exists
+	DB.Exec("ALTER TABLE project.segments ADD COLUMN IF NOT EXISTS match_type VARCHAR(3) DEFAULT 'AND'")
+
+	// Add priority to flag_environment_overrides if not exists
+	DB.Exec("ALTER TABLE project.flag_environment_overrides ADD COLUMN IF NOT EXISTS priority INT DEFAULT 0")
+
+	// Drop old flag_segment_overrides table
+	DB.Exec("DROP TABLE IF EXISTS project.flag_segment_overrides")
 }
