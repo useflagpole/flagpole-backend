@@ -2313,6 +2313,9 @@ const docTemplate = `{
                 "enabled": {
                     "type": "boolean"
                 },
+                "priority": {
+                    "type": "integer"
+                },
                 "segmentId": {
                     "type": "integer"
                 },
@@ -2431,6 +2434,9 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "matchType": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -2446,6 +2452,9 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "description": {
+                    "type": "string"
+                },
+                "matchType": {
                     "type": "string"
                 },
                 "name": {

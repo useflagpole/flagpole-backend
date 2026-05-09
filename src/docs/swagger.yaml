@@ -4,6 +4,8 @@ definitions:
     properties:
       enabled:
         type: boolean
+      priority:
+        type: integer
       segmentId:
         type: integer
       value: {}
@@ -81,6 +83,8 @@ definitions:
     properties:
       description:
         type: string
+      matchType:
+        type: string
       name:
         type: string
       rules:
@@ -91,6 +95,8 @@ definitions:
   handlers.segmentUpdateRequest:
     properties:
       description:
+        type: string
+      matchType:
         type: string
       name:
         type: string
