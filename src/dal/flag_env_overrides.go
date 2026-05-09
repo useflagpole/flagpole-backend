@@ -42,3 +42,15 @@ func (flagEnvOverrideDAL) RemoveOverride(flagID uint, env string, segmentID uint
 func (flagEnvOverrideDAL) RemoveByEnv(flagID uint, env string) error {
 	return database.DB.Where("flag_id = ? AND environment_name = ?", flagID, env).Delete(&models.FlagEnvironmentOverride{}).Error
 }
+
+func (flagEnvOverrideDAL) ListFlagsUsingSegment(segmentID uint) ([]models.FlagUsage, error) {
+	var results []models.FlagUsage
+	err := database.DB.Raw(`
+		SELECT DISTINCT ff.id, ff.key
+		FROM project.feature_flags ff
+		JOIN project.flag_environment_overrides feo ON feo.flag_id = ff.id
+		WHERE feo.segment_id = ? AND feo.deleted_at IS NULL AND ff.deleted_at IS NULL
+		ORDER BY ff.key ASC
+`, segmentID).Scan(&results).Error
+	return results, err
+}

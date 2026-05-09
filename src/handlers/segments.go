@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"flagpole/src/controllers"
+	"flagpole/src/dal"
 	"flagpole/src/models"
 	"flagpole/src/pkg/permissions"
 	"flagpole/src/pkg/response"
@@ -123,11 +124,20 @@ func CreateSegment(c fiber.Ctx) (int, response.APIResponse) {
 // @Failure      404 {object} response.ErrorResponse
 // @Router       /organizations/{org_id}/projects/{project_id}/segments/{segment_id} [get]
 func GetSegment(c fiber.Ctx) (int, response.APIResponse) {
-	seg, _, status, errResp := resolveSegment(c)
+	seg, proj, status, errResp := resolveSegment(c)
 	if errResp != nil {
 		return status, errResp
 	}
-	return fiber.StatusOK, response.DataResponse{Data: seg}
+	segment, err := controllers.GetSegment(proj.ID, seg.ID)
+	if err != nil {
+		return segmentErr(err)
+	}
+	flags, err := dal.FlagEnvOverride.ListFlagsUsingSegment(seg.ID)
+	if err != nil {
+		return fiber.StatusInternalServerError, response.Error500
+	}
+	segment.FlagsUsing = flags
+	return fiber.StatusOK, response.DataResponse{Data: segment}
 }
 
 // UpdateSegment godoc

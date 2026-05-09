@@ -10,12 +10,17 @@ type Segment struct {
 	Name        string        `gorm:"not null;uniqueIndex:idx_segment_project_name" json:"name"`
 	Description string        `gorm:"default:''"                                    json:"description"`
 	MatchType   string        `gorm:"default:'AND'"                                 json:"matchType"`
-	RuleCount   int           `gorm:"->;column:rule_count"                          json:"ruleCount"`
+	FlagsUsing  []FlagUsage   `gorm:"-"                                             json:"flagsUsing"`
 	Rules       []SegmentRule `gorm:"foreignKey:SegmentID"                          json:"rules,omitempty"`
 }
 
 func (Segment) TableName() string {
 	return "project.segments"
+}
+
+type FlagUsage struct {
+	ID  uint   `json:"id"`
+	Key string `json:"key"`
 }
 
 type SegmentRule struct {

@@ -11,11 +11,7 @@ var Segment = segmentDAL{}
 
 func (segmentDAL) ListByProject(projectID uint) ([]models.Segment, error) {
 	var segments []models.Segment
-	err := database.DB.
-		Select("project.segments.*, (SELECT COUNT(*) FROM project.segment_rules sr WHERE sr.segment_id = project.segments.id AND sr.deleted_at IS NULL) as rule_count").
-		Where("project_id = ?", projectID).
-		Order("name ASC").
-		Find(&segments).Error
+	err := database.DB.Where("project_id = ?", projectID).Order("name ASC").Find(&segments).Error
 	return segments, err
 }
 
