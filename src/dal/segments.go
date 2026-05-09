@@ -50,7 +50,7 @@ func (segmentDAL) NameExists(projectID uint, name string) bool {
 
 func (segmentDAL) GetRules(segmentID uint) ([]models.SegmentRule, error) {
 	var rules []models.SegmentRule
-	err := database.DB.Where("segment_id = ?", segmentID).Find(&rules).Error
+	err := database.DB.Where("segment_id = ?", segmentID).Order("id ASC").Find(&rules).Error
 	return rules, err
 }
 

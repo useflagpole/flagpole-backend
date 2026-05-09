@@ -29,14 +29,21 @@ func GetSegment(projectID uint, segmentID uint) (*models.Segment, error) {
 	return seg, nil
 }
 
-func CreateSegment(projectID uint, name, description string, rules []models.SegmentRule) (*models.Segment, error) {
+func CreateSegment(projectID uint, name, description, matchType string, rules []models.SegmentRule) (*models.Segment, error) {
 	if dal.Segment.NameExists(projectID, name) {
 		return nil, ErrSegmentNameTaken
+	}
+	if err := models.ValidateSegmentRules(rules); err != nil {
+		return nil, err
+	}
+	if matchType == "" {
+		matchType = "AND"
 	}
 	seg := &models.Segment{
 		ProjectID:   projectID,
 		Name:        name,
 		Description: description,
+		MatchType:   matchType,
 	}
 	if err := dal.Segment.Create(seg); err != nil {
 		return nil, err
@@ -52,7 +59,7 @@ func CreateSegment(projectID uint, name, description string, rules []models.Segm
 	return seg, nil
 }
 
-func UpdateSegment(segment *models.Segment, name, description string, rules []models.SegmentRule) (*models.Segment, error) {
+func UpdateSegment(segment *models.Segment, name, description, matchType string, rules []models.SegmentRule) (*models.Segment, error) {
 	if name != "" && name != segment.Name {
 		if dal.Segment.NameExists(segment.ProjectID, name) {
 			return nil, ErrSegmentNameTaken
@@ -62,10 +69,16 @@ func UpdateSegment(segment *models.Segment, name, description string, rules []mo
 	if description != "" {
 		segment.Description = description
 	}
+	if matchType != "" {
+		segment.MatchType = matchType
+	}
 	if err := dal.Segment.Save(segment); err != nil {
 		return nil, err
 	}
 	if rules != nil {
+		if err := models.ValidateSegmentRules(rules); err != nil {
+			return nil, err
+		}
 		for i := range rules {
 			rules[i].SegmentID = segment.ID
 		}

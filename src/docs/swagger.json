@@ -2307,6 +2307,9 @@
                 "enabled": {
                     "type": "boolean"
                 },
+                "priority": {
+                    "type": "integer"
+                },
                 "segmentId": {
                     "type": "integer"
                 },
@@ -2425,6 +2428,9 @@
                 "description": {
                     "type": "string"
                 },
+                "matchType": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -2440,6 +2446,9 @@
             "type": "object",
             "properties": {
                 "description": {
+                    "type": "string"
+                },
+                "matchType": {
                     "type": "string"
                 },
                 "name": {

@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"flagpole/src/controllers"
+	"flagpole/src/dal"
 	"flagpole/src/models"
 	"flagpole/src/pkg/permissions"
 	"flagpole/src/pkg/response"
@@ -15,12 +16,14 @@ import (
 type segmentCreateRequest struct {
 	Name        string                 `json:"name"`
 	Description string                 `json:"description"`
+	MatchType   string                 `json:"matchType"`
 	Rules       []models.SegmentRule   `json:"rules"`
 }
 
 type segmentUpdateRequest struct {
 	Name        *string               `json:"name"`
 	Description *string               `json:"description"`
+	MatchType   *string               `json:"matchType"`
 	Rules       *[]models.SegmentRule `json:"rules"`
 }
 
@@ -100,7 +103,7 @@ func CreateSegment(c fiber.Ctx) (int, response.APIResponse) {
 	if status, errResp := requirePermission(proj.OrganizationID, permissions.SegmentCreate, c); errResp != nil {
 		return status, errResp
 	}
-	seg, err := controllers.CreateSegment(proj.ID, req.Name, req.Description, req.Rules)
+	seg, err := controllers.CreateSegment(proj.ID, req.Name, req.Description, req.MatchType, req.Rules)
 	if err != nil {
 		return segmentErr(err)
 	}
@@ -121,11 +124,20 @@ func CreateSegment(c fiber.Ctx) (int, response.APIResponse) {
 // @Failure      404 {object} response.ErrorResponse
 // @Router       /organizations/{org_id}/projects/{project_id}/segments/{segment_id} [get]
 func GetSegment(c fiber.Ctx) (int, response.APIResponse) {
-	seg, _, status, errResp := resolveSegment(c)
+	seg, proj, status, errResp := resolveSegment(c)
 	if errResp != nil {
 		return status, errResp
 	}
-	return fiber.StatusOK, response.DataResponse{Data: seg}
+	segment, err := controllers.GetSegment(proj.ID, seg.ID)
+	if err != nil {
+		return segmentErr(err)
+	}
+	flags, err := dal.FlagEnvOverride.ListFlagsUsingSegment(seg.ID)
+	if err != nil {
+		return fiber.StatusInternalServerError, response.Error500
+	}
+	segment.FlagsUsing = flags
+	return fiber.StatusOK, response.DataResponse{Data: segment}
 }
 
 // UpdateSegment godoc
@@ -163,11 +175,15 @@ func UpdateSegment(c fiber.Ctx) (int, response.APIResponse) {
 	if req.Description != nil {
 		desc = *req.Description
 	}
+	matchType := ""
+	if req.MatchType != nil {
+		matchType = *req.MatchType
+	}
 	var rules []models.SegmentRule
 	if req.Rules != nil {
 		rules = *req.Rules
 	}
-	updated, err := controllers.UpdateSegment(seg, name, desc, rules)
+	updated, err := controllers.UpdateSegment(seg, name, desc, matchType, rules)
 	if err != nil {
 		return segmentErr(err)
 	}
