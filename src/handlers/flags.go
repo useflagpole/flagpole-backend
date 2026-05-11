@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"flagpole/src/controllers"
-	"flagpole/src/dal"
 	"flagpole/src/models"
 	"flagpole/src/pkg/permissions"
 	"flagpole/src/pkg/response"
@@ -335,7 +334,17 @@ func UpdateFlagConfig(c fiber.Ctx) (int, response.APIResponse) {
 		}
 	}
 
-	changes, err := controllers.UpdateFlagConfig(flag.ID, env, req.Enabled, req.RolloutEnabled, req.RolloutPercentage, req.DefaultValue, req.ServedValue, req.Overrides)
+	changes, err := controllers.UpdateFlagConfig(
+		proj.ID,
+		flag.ID,
+		env,
+		req.Enabled,
+		req.RolloutEnabled,
+		req.RolloutPercentage,
+		req.DefaultValue,
+		req.ServedValue,
+		req.Overrides,
+	)
 	if err != nil {
 		if errors.Is(err, controllers.ErrConfigNotFound) {
 			return fiber.StatusNotFound, response.ErrorResponse{Error: "configuration not found for this environment"}
@@ -343,6 +352,7 @@ func UpdateFlagConfig(c fiber.Ctx) (int, response.APIResponse) {
 		return flagErr(err)
 	}
 
+	// only logs below
 	if changes.EnabledChanged != nil {
 		state := "Disabled"
 		if *changes.EnabledChanged {
@@ -363,29 +373,14 @@ func UpdateFlagConfig(c fiber.Ctx) (int, response.APIResponse) {
 	if changes.ValuesChanged {
 		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagValues, flag.Key, "Updated values for '"+flag.Key+"' in "+env, env)
 	}
-	for _, segID := range changes.OverridesAdded {
-		seg, err := dal.Segment.GetByID(segID, 0)
-		segName := ""
-		if err == nil {
-			segName = seg.Name
-		}
-		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagOverrideAdd, flag.Key, "Added segment '"+segName+"' override for '"+flag.Key+"' in "+env, env)
+	for _, oc := range changes.OverridesAdded {
+		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagOverrideAdd, flag.Key, "Added segment '"+oc.SegmentName+"' override for '"+flag.Key+"' in "+env, env)
 	}
-	for _, segID := range changes.OverridesRemoved {
-		seg, err := dal.Segment.GetByID(segID, 0)
-		segName := ""
-		if err == nil {
-			segName = seg.Name
-		}
-		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagOverrideRemove, flag.Key, "Removed segment '"+segName+"' override for '"+flag.Key+"' in "+env, env)
+	for _, oc := range changes.OverridesRemoved {
+		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagOverrideRemove, flag.Key, "Removed segment '"+oc.SegmentName+"' override for '"+flag.Key+"' in "+env, env)
 	}
 	for _, vc := range changes.OverridesValueChanged {
-		seg, err := dal.Segment.GetByID(vc.SegmentID, 0)
-		segName := ""
-		if err == nil {
-			segName = seg.Name
-		}
-		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagOverrideUpdate, flag.Key, "Updated segment '"+segName+"' override for '"+flag.Key+"' in "+env+" from "+vc.OldValue+" to "+vc.NewValue, env)
+		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagOverrideUpdate, flag.Key, "Updated segment '"+vc.SegmentName+"' override for '"+flag.Key+"' in "+env+" from "+vc.OldValue+" to "+vc.NewValue, env)
 	}
 
 	return fiber.StatusOK, response.DataResponse{Data: fiber.Map{"ok": true}}

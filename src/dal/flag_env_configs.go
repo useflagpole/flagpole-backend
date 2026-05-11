@@ -3,50 +3,58 @@ package dal
 import (
 	"flagpole/src/database"
 	"flagpole/src/models"
+
+	"gorm.io/gorm"
 )
 
 type flagEnvConfigDAL struct{}
 
 var FlagEnvConfig = flagEnvConfigDAL{}
 
-func (flagEnvConfigDAL) GetByFlagAndEnv(flagID uint, env string) (*models.FlagEnvironmentConfig, error) {
+func (f *flagEnvConfigDAL) db(tx ...*gorm.DB) *gorm.DB {
+	if len(tx) > 0 && tx[0] != nil {
+		return tx[0]
+	}
+	return database.DB
+}
+
+func (f *flagEnvConfigDAL) GetByFlagAndEnv(flagID uint, env string, tx ...*gorm.DB) (*models.FlagEnvironmentConfig, error) {
 	var config models.FlagEnvironmentConfig
-	err := database.DB.Where("flag_id = ? AND environment_name = ?", flagID, env).First(&config).Error
+	err := f.db(tx...).Where("flag_id = ? AND environment_name = ?", flagID, env).First(&config).Error
 	return &config, err
 }
 
-func (flagEnvConfigDAL) Create(config *models.FlagEnvironmentConfig) error {
-	return database.DB.Create(config).Error
+func (f *flagEnvConfigDAL) Create(config *models.FlagEnvironmentConfig, tx ...*gorm.DB) error {
+	return f.db(tx...).Create(config).Error
 }
 
-func (flagEnvConfigDAL) Save(config *models.FlagEnvironmentConfig) error {
-	return database.DB.Save(config).Error
+func (f *flagEnvConfigDAL) Save(config *models.FlagEnvironmentConfig, tx ...*gorm.DB) error {
+	return f.db(tx...).Save(config).Error
 }
 
-func (flagEnvConfigDAL) Delete(config *models.FlagEnvironmentConfig) error {
-	return database.DB.Delete(config).Error
+func (f *flagEnvConfigDAL) Delete(config *models.FlagEnvironmentConfig, tx ...*gorm.DB) error {
+	return f.db(tx...).Delete(config).Error
 }
 
-func (flagEnvConfigDAL) ListByFlag(flagID uint) ([]models.FlagEnvironmentConfig, error) {
+func (f *flagEnvConfigDAL) ListByFlag(flagID uint, tx ...*gorm.DB) ([]models.FlagEnvironmentConfig, error) {
 	var configs []models.FlagEnvironmentConfig
-	err := database.DB.Where("flag_id = ?", flagID).Find(&configs).Error
+	err := f.db(tx...).Where("flag_id = ?", flagID).Find(&configs).Error
 	return configs, err
 }
 
-func (flagEnvConfigDAL) DeleteByEnv(projectID uint, env string) error {
-	// Join with feature_flags to get flag IDs for this project
-	return database.DB.Exec(`
+func (f *flagEnvConfigDAL) DeleteByEnv(projectID uint, env string, tx ...*gorm.DB) error {
+	return f.db(tx...).Exec(`
 		DELETE FROM project.flag_environment_configs fec
 		USING project.feature_flags ff
-		WHERE fec.flag_id = ff.id 
-		AND ff.project_id = ? 
+		WHERE fec.flag_id = ff.id
+		AND ff.project_id = ?
 		AND fec.environment_name = ?
 	`, projectID, env).Error
 }
 
-func (flagEnvConfigDAL) Exists(flagID uint, env string) bool {
+func (f *flagEnvConfigDAL) Exists(flagID uint, env string, tx ...*gorm.DB) bool {
 	var count int64
-	database.DB.Model(&models.FlagEnvironmentConfig{}).
+	f.db(tx...).Model(&models.FlagEnvironmentConfig{}).
 		Where("flag_id = ? AND environment_name = ?", flagID, env).
 		Count(&count)
 	return count > 0
