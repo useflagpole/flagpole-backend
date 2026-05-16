@@ -21,6 +21,7 @@ type FeatureFlag struct {
 	Key         string `gorm:"not null;uniqueIndex:idx_flag_key_project"   json:"key"`
 	Description string `gorm:"not null;default:''"                         json:"description"`
 	FlagType    string `gorm:"not null"                                    json:"type"`
+	EnvCount    int    `gorm:"->;column:env_count" json:"envCount"`
 }
 
 func (FeatureFlag) TableName() string {

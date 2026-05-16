@@ -11,7 +11,12 @@ var FeatureFlag = featureFlagDAL{}
 
 func (featureFlagDAL) ListByProject(projectID uint) ([]models.FeatureFlag, error) {
 	var flags []models.FeatureFlag
-	err := database.DB.Where("project_id = ?", projectID).Find(&flags).Error
+	err := database.DB.
+		Select("project.feature_flags.*, COUNT(project.flag_environment_configs.id) AS env_count").
+		Joins("LEFT JOIN project.flag_environment_configs ON project.feature_flags.id = project.flag_environment_configs.flag_id").
+		Where("project.feature_flags.project_id = ?", projectID).
+		Group("project.feature_flags.id").
+		Find(&flags).Error
 	return flags, err
 }
 
