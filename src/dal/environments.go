@@ -9,6 +9,15 @@ type environmentDAL struct{}
 
 var Environment = environmentDAL{}
 
+func (environmentDAL) GetByID(id uint) (*models.Environment, error) {
+	var env models.Environment
+	err := database.DB.Where("id = ?", id).First(&env).Error
+	if err != nil {
+		return nil, err
+	}
+	return &env, nil
+}
+
 func (environmentDAL) ListByProject(projectID uint) ([]models.Environment, error) {
 	var envs []models.Environment
 	err := database.DB.Where("project_id = ?", projectID).Order("id ASC").Find(&envs).Error

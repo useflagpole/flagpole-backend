@@ -7,7 +7,10 @@ import (
 	"regexp"
 
 	"flagpole/src/dal"
+	"flagpole/src/database"
 	"flagpole/src/models"
+
+	"gorm.io/gorm"
 )
 
 const MAX_FLAGS_PER_PROJECT = 25
@@ -85,20 +88,27 @@ func UpdateFlagMetadata(flag *models.FeatureFlag, description *string) (*models.
 }
 
 type FlagConfigChanges struct {
-	EnabledChanged       *bool
-	RolloutToggled       *bool
-	RolloutPctChanged    bool
-	RolloutPct           int
-	ValuesChanged        bool
-	OverridesAdded       []uint
-	OverridesRemoved     []uint
-	OverridesValueChanged []OverrideValueChange
+	EnvName               string
+	EnabledChanged        *bool
+	RolloutToggled        *bool
+	RolloutPctChanged     bool
+	RolloutPct            int
+	ValuesChanged         bool
+	OverridesAdded        []OverrideChange
+	OverridesRemoved      []OverrideChange
+	OverridesValueChanged []OverrideValue
 }
 
-type OverrideValueChange struct {
-	SegmentID uint
-	OldValue  string
-	NewValue  string
+type OverrideChange struct {
+	SegmentID   uint
+	SegmentName string
+}
+
+type OverrideValue struct {
+	SegmentID   uint
+	SegmentName string
+	OldValue    string
+	NewValue    string
 }
 
 type OverridePayload struct {
@@ -108,13 +118,13 @@ type OverridePayload struct {
 	Priority  int         `json:"priority"`
 }
 
-func GetFlagDetail(projectID uint, flagID uint, env string) (*FlagDetailDTO, error) {
+func GetFlagDetail(projectID, flagID, envID uint) (*FlagDetailDTO, error) {
 	flag, err := dal.FeatureFlag.GetByID(flagID, projectID)
 	if err != nil {
 		return nil, ErrFlagNotFound
 	}
 
-	config, err := dal.FlagEnvConfig.GetByFlagAndEnv(flagID, env)
+	config, err := dal.FlagEnvConfig.GetByFlagAndEnvID(flagID, envID)
 	if err != nil {
 		return &FlagDetailDTO{
 			ID:               flag.ID,
@@ -133,7 +143,7 @@ func GetFlagDetail(projectID uint, flagID uint, env string) (*FlagDetailDTO, err
 	defaultVal, _ := config.ParsedDefaultValue()
 	servedVal, _ := config.ParsedServedValue()
 
-	overrides, err := dal.FlagEnvOverride.ListByFlagAndEnv(flagID, env)
+	overrides, err := dal.FlagEnvOverride.ListByFlagAndEnvID(flagID, envID)
 	if err != nil {
 		return nil, err
 	}
@@ -196,8 +206,8 @@ type SegmentOverrideDTO struct {
 	Priority  int         `json:"priority"`
 }
 
-func CreateFlagEnvConfig(flagID uint, env string, projectID uint, flagType string) (*models.FlagEnvironmentConfig, error) {
-	if dal.FlagEnvConfig.Exists(flagID, env) {
+func CreateFlagEnvConfig(flagID, envID, projectID uint, flagType string) (*models.FlagEnvironmentConfig, error) {
+	if dal.FlagEnvConfig.Exists(flagID, envID) {
 		return nil, ErrConfigExists
 	}
 
@@ -206,7 +216,7 @@ func CreateFlagEnvConfig(flagID uint, env string, projectID uint, flagType strin
 
 	config := &models.FlagEnvironmentConfig{
 		FlagID:            flagID,
-		EnvironmentName:   env,
+		EnvironmentID:     envID,
 		Enabled:           false,
 		RolloutEnabled:    false,
 		RolloutPercentage: 0,
@@ -234,113 +244,170 @@ func defaultValueForType(flagType string) string {
 	}
 }
 
-func UpdateFlagConfig(flagID uint, env string,
-	enabled *bool, rolloutEnabled *bool, rolloutPercentage *int,
-	defaultValue interface{}, servedValue interface{},
-	overrides []OverridePayload) (*FlagConfigChanges, error) {
-
-	config, err := dal.FlagEnvConfig.GetByFlagAndEnv(flagID, env)
-	if err != nil {
-		return nil, ErrConfigNotFound
+func segmentName(segID uint, projectID uint) string {
+	if seg, err := dal.Segment.GetByID(segID, projectID); err == nil {
+		return seg.Name
 	}
+	return ""
+}
 
-	changes := &FlagConfigChanges{}
-
-	oldEnabled := config.Enabled
-	if enabled != nil {
+func applyConfigChanges(
+	config *models.FlagEnvironmentConfig,
+	enabled *bool,
+	rolloutEnabled *bool,
+	rolloutPercentage *int,
+	defaultValue interface{},
+	servedValue interface{},
+	changes *FlagConfigChanges,
+) error {
+	if enabled != nil && config.Enabled != *enabled {
+		changes.EnabledChanged = enabled
 		config.Enabled = *enabled
-		if config.Enabled != oldEnabled {
-			changes.EnabledChanged = &config.Enabled
-		}
 	}
-
-	oldRolloutEnabled := config.RolloutEnabled
-	oldRolloutPct := config.RolloutPercentage
-	if rolloutEnabled != nil {
+	if rolloutEnabled != nil && config.RolloutEnabled != *rolloutEnabled {
+		changes.RolloutToggled = rolloutEnabled
 		config.RolloutEnabled = *rolloutEnabled
-		if config.RolloutEnabled != oldRolloutEnabled {
-			changes.RolloutToggled = &config.RolloutEnabled
-		}
 	}
-	if rolloutPercentage != nil {
+	if rolloutPercentage != nil && config.RolloutPercentage != *rolloutPercentage {
+		changes.RolloutPctChanged = true
+		changes.RolloutPct = *rolloutPercentage
 		config.RolloutPercentage = *rolloutPercentage
-		if config.RolloutPercentage != oldRolloutPct {
-			changes.RolloutPctChanged = true
-			changes.RolloutPct = config.RolloutPercentage
-		}
 	}
 
 	oldDefault := config.DefaultValue
 	oldServed := config.ServedValue
+
 	if defaultValue != nil {
 		raw, err := json.Marshal(defaultValue)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		config.DefaultValue = string(raw)
 	}
 	if servedValue != nil {
 		raw, err := json.Marshal(servedValue)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		config.ServedValue = string(raw)
 	}
 	if config.DefaultValue != oldDefault || config.ServedValue != oldServed {
 		changes.ValuesChanged = true
 	}
+	return nil
+}
 
-	if err := dal.FlagEnvConfig.Save(config); err != nil {
-		return nil, err
-	}
+// UpdateFlagConfig reconciles a flag's environment configuration and its segment overrides.
+// All changes are wrapped in a transaction — if any step fails, everything rolls back.
+func UpdateFlagConfig(
+	projectID uint,
+	flagID uint,
+	envID uint,
+	envName string,
+	enabled *bool,
+	rolloutEnabled *bool,
+	rolloutPercentage *int,
+	defaultValue interface{},
+	servedValue interface{},
+	overrides []OverridePayload,
+) (*FlagConfigChanges, error) {
 
-	if overrides != nil {
-		existing, err := dal.FlagEnvOverride.ListByFlagAndEnv(flagID, env)
+	var changes *FlagConfigChanges
+
+	// Begin transaction — all DB operations below share the same tx
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+
+		// 1. Load existing config for this flag + env
+		config, err := dal.FlagEnvConfig.GetByFlagAndEnvID(flagID, envID, tx)
 		if err != nil {
-			return nil, err
+			return ErrConfigNotFound
 		}
+
+		// 2. Apply base config changes (enabled, rollout, values)
+		changes = &FlagConfigChanges{EnvName: envName}
+		if err := applyConfigChanges(config, enabled, rolloutEnabled, rolloutPercentage, defaultValue, servedValue, changes); err != nil {
+			return err
+		}
+
+		// 3. Persist config changes
+		if err := dal.FlagEnvConfig.Save(config, tx); err != nil {
+			return err
+		}
+
+		// 4. No overrides provided — nothing more to do
+		if overrides == nil {
+			return nil
+		}
+
+		// 5. Load existing overrides for this flag + env
+		existing, err := dal.FlagEnvOverride.ListByFlagAndEnvID(flagID, envID, tx)
+		if err != nil {
+			return err
+		}
+
+		// Build a map for O(1) lookup during diff
 		existingMap := make(map[uint]*models.FlagEnvironmentOverride)
 		for i := range existing {
 			existingMap[existing[i].SegmentID] = &existing[i]
 		}
 
+		// 6. Diff incoming overrides against existing
+		//    - New segments → Added
+		//    - Existing segments with changed value → ValueChanged
+		//    - Remaining existing segments → Removed (not in incoming list)
 		for i, o := range overrides {
 			raw, err := json.Marshal(o.Value)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			priority := o.Priority
 			if priority == 0 {
 				priority = i + 1
 			}
+
 			if _, ok := existingMap[o.SegmentID]; !ok {
-				if err := dal.FlagEnvOverride.SetOverride(flagID, env, o.SegmentID, string(raw), o.Enabled, priority); err != nil {
-					return nil, err
+				// Segment not in existing overrides → new override
+				if err := dal.FlagEnvOverride.SetOverride(flagID, envID, o.SegmentID, string(raw), o.Enabled, priority, tx); err != nil {
+					return err
 				}
-				changes.OverridesAdded = append(changes.OverridesAdded, o.SegmentID)
+				changes.OverridesAdded = append(changes.OverridesAdded, OverrideChange{
+					SegmentID:   o.SegmentID,
+					SegmentName: segmentName(o.SegmentID, projectID),
+				})
 			} else {
+				// Segment already has an override
 				oldVal := existingMap[o.SegmentID].Value
 				if string(raw) != oldVal {
-					changes.OverridesValueChanged = append(changes.OverridesValueChanged, OverrideValueChange{
-						SegmentID: o.SegmentID,
-						OldValue:  oldVal,
-						NewValue:  string(raw),
+					// Value changed → track it
+					changes.OverridesValueChanged = append(changes.OverridesValueChanged, OverrideValue{
+						SegmentID:   o.SegmentID,
+						SegmentName: segmentName(o.SegmentID, projectID),
+						OldValue:    oldVal,
+						NewValue:    string(raw),
 					})
 				}
-				if err := dal.FlagEnvOverride.SetOverride(flagID, env, o.SegmentID, string(raw), o.Enabled, priority); err != nil {
-					return nil, err
+				// Always persist (updates value/enabled/priority even if value didn't change)
+				if err := dal.FlagEnvOverride.SetOverride(flagID, envID, o.SegmentID, string(raw), o.Enabled, priority, tx); err != nil {
+					return err
 				}
 			}
+			// Remove from map — what's left at the end are the stale overrides to delete
 			delete(existingMap, o.SegmentID)
 		}
 
+		// 7. Remaining segments in existingMap were not in the incoming list → removed
 		for segID := range existingMap {
-			if err := dal.FlagEnvOverride.RemoveOverride(flagID, env, segID); err != nil {
-				return nil, err
+			if err := dal.FlagEnvOverride.RemoveOverride(flagID, envID, segID, tx); err != nil {
+				return err
 			}
-			changes.OverridesRemoved = append(changes.OverridesRemoved, segID)
+			changes.OverridesRemoved = append(changes.OverridesRemoved, OverrideChange{
+				SegmentID:   segID,
+				SegmentName: segmentName(segID, projectID),
+			})
 		}
-	}
 
-	return changes, nil
+		return nil
+	})
+
+	return changes, err
 }

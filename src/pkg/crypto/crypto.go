@@ -41,3 +41,11 @@ func HashPassword(password, salt string) (string, error) {
 func VerifyPassword(password, salt, hash string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(salt+password)) == nil
 }
+
+func GenerateSDKKey(prefix string) (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return prefix + hex.EncodeToString(b), nil
+}

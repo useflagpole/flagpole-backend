@@ -80,6 +80,18 @@ func resolveAnyProject(c fiber.Ctx) (*models.Project, int, response.APIResponse)
 	return proj, 0, nil
 }
 
+func resolveEnv(c fiber.Ctx, proj *models.Project) (*models.Environment, int, response.APIResponse) {
+	v, err := strconv.ParseUint(c.Params("env_id"), 10, 64)
+	if err != nil {
+		return nil, fiber.StatusBadRequest, response.ErrorResponse{Error: "invalid env_id"}
+	}
+	env, err := dal.Environment.GetByID(uint(v))
+	if err != nil || env.ProjectID != proj.ID {
+		return nil, fiber.StatusNotFound, response.ErrorResponse{Error: "environment not found"}
+	}
+	return env, 0, nil
+}
+
 func envErr(err error) (int, response.APIResponse) {
 	switch {
 	case errors.Is(err, controllers.ErrMaxEnvironments):
@@ -158,15 +170,15 @@ func CreateEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 // @Tags         Environments
 // @Accept       json
 // @Produce      json
-// @Param        org_id     path int    true "Organization ID"
-// @Param        project_id path int    true "Project ID"
-// @Param        env_name   path string true "Current environment name"
+// @Param        org_id     path int true "Organization ID"
+// @Param        project_id path int true "Project ID"
+// @Param        env_id     path int true "Environment ID"
 // @Param        body       body envNameRequest true "New name"
 // @Success      200 {object} response.DataResponse
 // @Failure      400 {object} response.ErrorResponse
 // @Failure      403 {object} response.ErrorResponse
 // @Failure      404 {object} response.ErrorResponse
-// @Router       /organizations/{org_id}/projects/{project_id}/environments/{env_name} [patch]
+// @Router       /organizations/{org_id}/projects/{project_id}/environments/{env_id} [patch]
 func RenameEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 	proj, status, errResp := resolveProject(c)
 	if errResp != nil {
@@ -175,16 +187,19 @@ func RenameEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 	if status, errResp := requirePermission(proj.OrganizationID, permissions.EnvRename, c); errResp != nil {
 		return status, errResp
 	}
+	env, status, errResp := resolveEnv(c, proj)
+	if errResp != nil {
+		return status, errResp
+	}
 	var req envNameRequest
 	if err := c.Bind().JSON(&req); err != nil || req.Name == "" {
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: "name is required"}
 	}
-	oldName := c.Params("env_name")
-	envs, err := controllers.RenameEnvironment(proj.ID, oldName, req.Name)
+	envs, err := controllers.RenameEnvironment(proj.ID, env.ID, req.Name)
 	if err != nil {
 		return envErr(err)
 	}
-	logAudit(c, proj.OrganizationID, &proj.ID, models.ActionEnvRename, req.Name, "Renamed environment from '"+oldName+"' to '"+req.Name+"'", "")
+	logAudit(c, proj.OrganizationID, &proj.ID, models.ActionEnvRename, req.Name, "Renamed environment from '"+env.Name+"' to '"+req.Name+"'", "")
 	return fiber.StatusOK, response.DataResponse{Data: envs}
 }
 
@@ -192,14 +207,14 @@ func RenameEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 // @Summary      Delete an environment
 // @Tags         Environments
 // @Produce      json
-// @Param        org_id     path int    true "Organization ID"
-// @Param        project_id path int    true "Project ID"
-// @Param        env_name   path string true "Environment name"
+// @Param        org_id     path int true "Organization ID"
+// @Param        project_id path int true "Project ID"
+// @Param        env_id     path int true "Environment ID"
 // @Success      200 {object} response.DataResponse
 // @Failure      400 {object} response.ErrorResponse
 // @Failure      403 {object} response.ErrorResponse
 // @Failure      404 {object} response.ErrorResponse
-// @Router       /organizations/{org_id}/projects/{project_id}/environments/{env_name} [delete]
+// @Router       /organizations/{org_id}/projects/{project_id}/environments/{env_id} [delete]
 func DeleteEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 	proj, status, errResp := resolveProject(c)
 	if errResp != nil {
@@ -208,11 +223,14 @@ func DeleteEnvironment(c fiber.Ctx) (int, response.APIResponse) {
 	if status, errResp := requirePermission(proj.OrganizationID, permissions.EnvDelete, c); errResp != nil {
 		return status, errResp
 	}
-	envName := c.Params("env_name")
-	envs, err := controllers.DeleteEnvironment(proj.ID, envName)
+	env, status, errResp := resolveEnv(c, proj)
+	if errResp != nil {
+		return status, errResp
+	}
+	envs, err := controllers.DeleteEnvironment(proj.ID, env.ID)
 	if err != nil {
 		return envErr(err)
 	}
-	logAudit(c, proj.OrganizationID, &proj.ID, models.ActionEnvDelete, envName, "Deleted environment '"+envName+"'", "")
+	logAudit(c, proj.OrganizationID, &proj.ID, models.ActionEnvDelete, env.Name, "Deleted environment '"+env.Name+"'", "")
 	return fiber.StatusOK, response.DataResponse{Data: envs}
 }

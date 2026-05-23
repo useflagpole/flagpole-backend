@@ -17,19 +17,11 @@ var (
 	ErrEnvProtected     = errors.New("production environment is protected")
 )
 
-func ListEnvironments(projectID uint) ([]string, error) {
-	envs, err := dal.Environment.ListByProject(projectID)
-	if err != nil {
-		return nil, err
-	}
-	names := make([]string, len(envs))
-	for i, e := range envs {
-		names[i] = e.Name
-	}
-	return names, nil
+func ListEnvironments(projectID uint) ([]models.Environment, error) {
+	return dal.Environment.ListByProject(projectID)
 }
 
-func CreateEnvironment(projectID uint, name string) ([]string, error) {
+func CreateEnvironment(projectID uint, name string) ([]models.Environment, error) {
 	if err := models.ValidateEnvironmentName(name); err != nil {
 		return nil, err
 	}
@@ -50,20 +42,19 @@ func CreateEnvironment(projectID uint, name string) ([]string, error) {
 	if err := dal.Environment.Create(env); err != nil {
 		return nil, err
 	}
-	envs = append(envs, name)
-	return envs, nil
+	return ListEnvironments(projectID)
 }
 
-func RenameEnvironment(projectID uint, oldName, newName string) ([]string, error) {
-	if oldName == "production" {
+func RenameEnvironment(projectID uint, envID uint, newName string) ([]models.Environment, error) {
+	env, err := dal.Environment.GetByID(envID)
+	if err != nil || env.ProjectID != projectID {
+		return nil, ErrEnvNotFound
+	}
+	if env.Name == "production" {
 		return nil, ErrEnvProtected
 	}
 	if err := models.ValidateEnvironmentName(newName); err != nil {
 		return nil, err
-	}
-	env, err := dal.Environment.GetByName(projectID, oldName)
-	if err != nil {
-		return nil, ErrEnvNotFound
 	}
 	if dal.Environment.NameExists(projectID, newName) {
 		return nil, ErrEnvAlreadyExists
@@ -75,16 +66,16 @@ func RenameEnvironment(projectID uint, oldName, newName string) ([]string, error
 	return ListEnvironments(projectID)
 }
 
-func DeleteEnvironment(projectID uint, name string) ([]string, error) {
-	if name == "production" {
-		return nil, ErrEnvProtected
-	}
-	env, err := dal.Environment.GetByName(projectID, name)
-	if err != nil {
+func DeleteEnvironment(projectID uint, envID uint) ([]models.Environment, error) {
+	env, err := dal.Environment.GetByID(envID)
+	if err != nil || env.ProjectID != projectID {
 		return nil, ErrEnvNotFound
 	}
+	if env.Name == "production" {
+		return nil, ErrEnvProtected
+	}
 
-	if err := dal.FlagEnvConfig.DeleteByEnv(projectID, name); err != nil {
+	if err := dal.FlagEnvConfig.DeleteByEnvID(projectID, env.ID); err != nil {
 		return nil, err
 	}
 
@@ -93,7 +84,7 @@ func DeleteEnvironment(projectID uint, name string) ([]string, error) {
 		return nil, err
 	}
 	for _, flag := range flags {
-		if err := dal.FlagEnvOverride.RemoveByEnv(flag.ID, name); err != nil {
+		if err := dal.FlagEnvOverride.RemoveByEnvID(flag.ID, env.ID); err != nil {
 			return nil, err
 		}
 	}

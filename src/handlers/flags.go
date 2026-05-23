@@ -58,6 +58,24 @@ func resolveFlag(c fiber.Ctx) (*models.FeatureFlag, *models.Project, int, respon
 	return flag, proj, 0, nil
 }
 
+// parseEnvID parses the required env_id query parameter. Returns envID, env name, and an error response if invalid.
+func parseEnvID(c fiber.Ctx) (uint, string, int, response.APIResponse) {
+	raw := c.Query("env_id")
+	if raw == "" {
+		return 0, "", fiber.StatusBadRequest, response.ErrorResponse{Error: "env_id query parameter is required"}
+	}
+	v, err := strconv.ParseUint(raw, 10, 64)
+	if err != nil {
+		return 0, "", fiber.StatusBadRequest, response.ErrorResponse{Error: "invalid env_id"}
+	}
+	envID := uint(v)
+	env, err := dal.Environment.GetByID(envID)
+	if err != nil {
+		return 0, "", fiber.StatusNotFound, response.ErrorResponse{Error: "environment not found"}
+	}
+	return envID, env.Name, 0, nil
+}
+
 // ListFlags godoc
 // @Summary      List feature flags for a project
 // @Tags         Flags
@@ -119,10 +137,10 @@ func CreateFlag(c fiber.Ctx) (int, response.APIResponse) {
 // @Summary      Get a feature flag by ID with environment config
 // @Tags         Flags
 // @Produce      json
-// @Param        org_id     path int true "Organization ID"
-// @Param        project_id path int true "Project ID"
-// @Param        flag_id    path int true "Flag ID"
-// @Param        env        query string true "Environment name"
+// @Param        org_id     path  int true  "Organization ID"
+// @Param        project_id path  int true  "Project ID"
+// @Param        flag_id    path  int true  "Flag ID"
+// @Param        env_id     query int true  "Environment ID"
 // @Success      200 {object} response.DataResponse
 // @Failure      400 {object} response.ErrorResponse
 // @Failure      403 {object} response.ErrorResponse
@@ -137,11 +155,11 @@ func GetFlag(c fiber.Ctx) (int, response.APIResponse) {
 	if err != nil {
 		return fiber.StatusBadRequest, response.ErrorResponse{Error: "invalid flag id"}
 	}
-	env := c.Query("env")
-	if env == "" {
-		return fiber.StatusBadRequest, response.ErrorResponse{Error: "env query parameter is required"}
+	envID, _, status, errResp := parseEnvID(c)
+	if errResp != nil {
+		return status, errResp
 	}
-	detail, err := controllers.GetFlagDetail(proj.ID, uint(flagID), env)
+	detail, err := controllers.GetFlagDetail(proj.ID, uint(flagID), envID)
 	if err != nil {
 		return flagErr(err)
 	}
@@ -217,10 +235,10 @@ func DeleteFlag(c fiber.Ctx) (int, response.APIResponse) {
 // @Summary      Get audit log for a specific flag
 // @Tags         Flags
 // @Produce      json
-// @Param        org_id     path int true "Organization ID"
-// @Param        project_id path int true "Project ID"
-// @Param        flag_id    path int true "Flag ID"
-// @Param        env        query string true "Environment name"
+// @Param        org_id     path  int    true  "Organization ID"
+// @Param        project_id path  int    true  "Project ID"
+// @Param        flag_id    path  int    true  "Flag ID"
+// @Param        env        query string false "Environment name (for filtering)"
 // @Success      200 {object} response.DataResponse
 // @Failure      400 {object} response.ErrorResponse
 // @Failure      403 {object} response.ErrorResponse
@@ -231,7 +249,7 @@ func GetFlagAudit(c fiber.Ctx) (int, response.APIResponse) {
 	if errResp != nil {
 		return status, errResp
 	}
-	env := c.Query("env")
+	env := c.Query("env") // audit log uses env name for display — kept as string
 	audits, err := controllers.GetFlagAudit(proj.ID, flag.Key, env)
 	if err != nil {
 		return fiber.StatusInternalServerError, response.Error500
@@ -240,11 +258,11 @@ func GetFlagAudit(c fiber.Ctx) (int, response.APIResponse) {
 }
 
 type flagConfigRequest struct {
-	Enabled           *bool                    `json:"enabled"`
-	RolloutEnabled    *bool                    `json:"rolloutEnabled"`
-	RolloutPercentage *int                     `json:"rolloutPercentage"`
-	DefaultValue      interface{}              `json:"defaultValue"`
-	ServedValue       interface{}              `json:"servedValue"`
+	Enabled           *bool                         `json:"enabled"`
+	RolloutEnabled    *bool                         `json:"rolloutEnabled"`
+	RolloutPercentage *int                          `json:"rolloutPercentage"`
+	DefaultValue      interface{}                   `json:"defaultValue"`
+	ServedValue       interface{}                   `json:"servedValue"`
 	Overrides         []controllers.OverridePayload `json:"overrides"`
 }
 
@@ -253,10 +271,10 @@ type flagConfigRequest struct {
 // @Tags         Flags
 // @Accept       json
 // @Produce      json
-// @Param        org_id     path int true "Organization ID"
-// @Param        project_id path int true "Project ID"
-// @Param        flag_id    path int true "Flag ID"
-// @Param        env        query string true "Environment name"
+// @Param        org_id     path  int true "Organization ID"
+// @Param        project_id path  int true "Project ID"
+// @Param        flag_id    path  int true "Flag ID"
+// @Param        env_id     query int true "Environment ID"
 // @Success      201 {object} response.DataResponse
 // @Failure      400 {object} response.ErrorResponse
 // @Failure      403 {object} response.ErrorResponse
@@ -268,21 +286,21 @@ func CreateFlagEnvConfig(c fiber.Ctx) (int, response.APIResponse) {
 	if errResp != nil {
 		return status, errResp
 	}
-	env := c.Query("env")
-	if env == "" {
-		return fiber.StatusBadRequest, response.ErrorResponse{Error: "env query parameter is required"}
+	envID, envName, status, errResp := parseEnvID(c)
+	if errResp != nil {
+		return status, errResp
 	}
 	if status, errResp := requirePermission(proj.OrganizationID, permissions.FlagUpdate, c); errResp != nil {
 		return status, errResp
 	}
-	config, err := controllers.CreateFlagEnvConfig(flag.ID, env, proj.ID, flag.FlagType)
+	config, err := controllers.CreateFlagEnvConfig(flag.ID, envID, proj.ID, flag.FlagType)
 	if err != nil {
 		if errors.Is(err, controllers.ErrConfigExists) {
 			return fiber.StatusConflict, response.ErrorResponse{Error: "configuration already exists for this environment"}
 		}
 		return flagErr(err)
 	}
-	logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagUpdate, flag.Key, "Created configuration for '"+env+"'", env)
+	logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagUpdate, flag.Key, "Created configuration for '"+envName+"'", envName)
 	return fiber.StatusCreated, response.DataResponse{Data: config}
 }
 
@@ -291,10 +309,10 @@ func CreateFlagEnvConfig(c fiber.Ctx) (int, response.APIResponse) {
 // @Tags         Flags
 // @Accept       json
 // @Produce      json
-// @Param        org_id     path int true "Organization ID"
-// @Param        project_id path int true "Project ID"
-// @Param        flag_id    path int true "Flag ID"
-// @Param        env        query string true "Environment name"
+// @Param        org_id     path  int true "Organization ID"
+// @Param        project_id path  int true "Project ID"
+// @Param        flag_id    path  int true "Flag ID"
+// @Param        env_id     query int true "Environment ID"
 // @Param        body       body flagConfigRequest true "Configuration"
 // @Success      200 {object} response.DataResponse
 // @Failure      400 {object} response.ErrorResponse
@@ -306,9 +324,9 @@ func UpdateFlagConfig(c fiber.Ctx) (int, response.APIResponse) {
 	if errResp != nil {
 		return status, errResp
 	}
-	env := c.Query("env")
-	if env == "" {
-		return fiber.StatusBadRequest, response.ErrorResponse{Error: "env query parameter is required"}
+	envID, envName, status, errResp := parseEnvID(c)
+	if errResp != nil {
+		return status, errResp
 	}
 	var req flagConfigRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -335,7 +353,18 @@ func UpdateFlagConfig(c fiber.Ctx) (int, response.APIResponse) {
 		}
 	}
 
-	changes, err := controllers.UpdateFlagConfig(flag.ID, env, req.Enabled, req.RolloutEnabled, req.RolloutPercentage, req.DefaultValue, req.ServedValue, req.Overrides)
+	changes, err := controllers.UpdateFlagConfig(
+		proj.ID,
+		flag.ID,
+		envID,
+		envName,
+		req.Enabled,
+		req.RolloutEnabled,
+		req.RolloutPercentage,
+		req.DefaultValue,
+		req.ServedValue,
+		req.Overrides,
+	)
 	if err != nil {
 		if errors.Is(err, controllers.ErrConfigNotFound) {
 			return fiber.StatusNotFound, response.ErrorResponse{Error: "configuration not found for this environment"}
@@ -348,44 +377,29 @@ func UpdateFlagConfig(c fiber.Ctx) (int, response.APIResponse) {
 		if *changes.EnabledChanged {
 			state = "Enabled"
 		}
-		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagToggle, flag.Key, state+" flag '"+flag.Key+"' in "+env, env)
+		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagToggle, flag.Key, state+" flag '"+flag.Key+"' in "+envName, envName)
 	}
 	if changes.RolloutToggled != nil {
 		state := "Disabled"
 		if *changes.RolloutToggled {
 			state = "Enabled"
 		}
-		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagRollout, flag.Key, state+" rollout for '"+flag.Key+"' in "+env, env)
+		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagRollout, flag.Key, state+" rollout for '"+flag.Key+"' in "+envName, envName)
 	}
 	if changes.RolloutPctChanged {
-		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagRollout, flag.Key, "Rollout for '"+flag.Key+"' set to "+fmt.Sprint(changes.RolloutPct)+"% in "+env, env)
+		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagRollout, flag.Key, "Rollout for '"+flag.Key+"' set to "+fmt.Sprint(changes.RolloutPct)+"% in "+envName, envName)
 	}
 	if changes.ValuesChanged {
-		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagValues, flag.Key, "Updated values for '"+flag.Key+"' in "+env, env)
+		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagValues, flag.Key, "Updated values for '"+flag.Key+"' in "+envName, envName)
 	}
-	for _, segID := range changes.OverridesAdded {
-		seg, err := dal.Segment.GetByID(segID, 0)
-		segName := ""
-		if err == nil {
-			segName = seg.Name
-		}
-		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagOverrideAdd, flag.Key, "Added segment '"+segName+"' override for '"+flag.Key+"' in "+env, env)
+	for _, oc := range changes.OverridesAdded {
+		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagOverrideAdd, flag.Key, "Added segment '"+oc.SegmentName+"' override for '"+flag.Key+"' in "+envName, envName)
 	}
-	for _, segID := range changes.OverridesRemoved {
-		seg, err := dal.Segment.GetByID(segID, 0)
-		segName := ""
-		if err == nil {
-			segName = seg.Name
-		}
-		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagOverrideRemove, flag.Key, "Removed segment '"+segName+"' override for '"+flag.Key+"' in "+env, env)
+	for _, oc := range changes.OverridesRemoved {
+		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagOverrideRemove, flag.Key, "Removed segment '"+oc.SegmentName+"' override for '"+flag.Key+"' in "+envName, envName)
 	}
 	for _, vc := range changes.OverridesValueChanged {
-		seg, err := dal.Segment.GetByID(vc.SegmentID, 0)
-		segName := ""
-		if err == nil {
-			segName = seg.Name
-		}
-		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagOverrideUpdate, flag.Key, "Updated segment '"+segName+"' override for '"+flag.Key+"' in "+env+" from "+vc.OldValue+" to "+vc.NewValue, env)
+		logAudit(c, proj.OrganizationID, &proj.ID, models.ActionFlagOverrideUpdate, flag.Key, "Updated segment '"+vc.SegmentName+"' override for '"+flag.Key+"' in "+envName+" from "+vc.OldValue+" to "+vc.NewValue, envName)
 	}
 
 	return fiber.StatusOK, response.DataResponse{Data: fiber.Map{"ok": true}}
