@@ -6,13 +6,14 @@ import (
 
 type FlagEnvironmentConfig struct {
 	Base
-	FlagID            uint   `gorm:"not null;uniqueIndex:idx_flag_env"`
-	EnvironmentName   string `gorm:"not null;uniqueIndex:idx_flag_env"`
-	Enabled           bool   `gorm:"not null;default:false"`
-	RolloutEnabled    bool   `gorm:"not null;default:false"`
-	RolloutPercentage int    `gorm:"not null;default:0"`
-	DefaultValue      string `gorm:"not null"`
-	ServedValue       string `gorm:"not null"`
+	FlagID            uint        `gorm:"not null;uniqueIndex:idx_flag_env_config"`
+	EnvironmentID     uint        `gorm:"not null;uniqueIndex:idx_flag_env_config"`
+	Environment       Environment `gorm:"foreignKey:EnvironmentID"                  json:"-"`
+	Enabled           bool        `gorm:"not null;default:false"`
+	RolloutEnabled    bool        `gorm:"not null;default:false"`
+	RolloutPercentage int         `gorm:"not null;default:0"`
+	DefaultValue      string      `gorm:"not null"`
+	ServedValue       string      `gorm:"not null"`
 }
 
 func (FlagEnvironmentConfig) TableName() string {

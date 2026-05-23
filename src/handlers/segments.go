@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log"
 	"strconv"
 
 	"flagpole/src/controllers"
@@ -34,7 +35,8 @@ func segmentErr(err error) (int, response.APIResponse) {
 	case errors.Is(err, controllers.ErrSegmentNotFound):
 		return fiber.StatusNotFound, response.ErrorResponse{Error: err.Error()}
 	default:
-		return fiber.StatusBadRequest, response.ErrorResponse{Error: err.Error()}
+		log.Printf("segmentErr: %v", err)
+		return fiber.StatusInternalServerError, response.Error500
 	}
 }
 

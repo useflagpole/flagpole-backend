@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"strconv"
 	"strings"
 
@@ -160,7 +161,8 @@ func DeleteOrgRole(c fiber.Ctx) (int, response.APIResponse) {
 
 	roleName := role.Name
 	if err := dal.OrgRole.Delete(role); err != nil {
-		return fiber.StatusBadRequest, response.ErrorResponse{Error: err.Error()}
+		log.Printf("DeleteOrgRole: %v", err)
+		return fiber.StatusInternalServerError, response.Error500
 	}
 
 	logAudit(c, orgID, nil, models.ActionRoleDelete, roleName, "Deleted role '"+roleName+"'", "")

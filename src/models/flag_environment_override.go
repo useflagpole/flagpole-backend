@@ -6,12 +6,13 @@ import (
 
 type FlagEnvironmentOverride struct {
 	Base
-	FlagID          uint   `gorm:"not null;uniqueIndex:idx_flag_env_seg"`
-	EnvironmentName string `gorm:"not null;uniqueIndex:idx_flag_env_seg"`
-	SegmentID       uint   `gorm:"not null;uniqueIndex:idx_flag_env_seg"`
-	Value           string `gorm:"not null"`
-	Enabled         bool   `gorm:"not null;default:true"`
-	Priority        int    `gorm:"default:0"`
+	FlagID        uint        `gorm:"not null;uniqueIndex:idx_flag_env_override"`
+	EnvironmentID uint        `gorm:"not null;uniqueIndex:idx_flag_env_override"`
+	Environment   Environment `gorm:"foreignKey:EnvironmentID"                    json:"-"`
+	SegmentID     uint        `gorm:"not null;uniqueIndex:idx_flag_env_override"`
+	Value         string      `gorm:"not null"`
+	Enabled       bool        `gorm:"not null;default:true"`
+	Priority      int         `gorm:"default:0"`
 }
 
 func (FlagEnvironmentOverride) TableName() string {

@@ -38,4 +38,5 @@ func Setup(app *fiber.App) {
 	registerEnvironmentRoutes(guarded)
 	registerFlagRoutes(guarded)
 	registerSegmentRoutes(guarded)
+	registerSDKKeyRoutes(guarded)
 }

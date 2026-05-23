@@ -32,6 +32,11 @@ func migrate() {
 		}
 	}
 
+	// Must run before AutoMigrate: adds environment_id as nullable and populates it
+	// from environment_name so AutoMigrate doesn't fail on NOT NULL for existing rows.
+	// On a fresh DB the table doesn't exist yet — these are no-ops, AutoMigrate handles it.
+	preMigrateEnvIDs()
+
 	if err := DB.AutoMigrate(
 		&models.User{},
 		&models.Organization{},
@@ -46,12 +51,14 @@ func migrate() {
 		&models.Segment{},
 		&models.SegmentRule{},
 		&models.AuditLog{},
+		&models.SDKKey{},
 	); err != nil {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 
 	migrateFeatureFlagValues()
 	migrateSegmentOverrides()
+	postMigrateEnvIDs()
 
 	ensureOwnerMembershipTrigger()
 	log.Println("Migrations applied")
@@ -124,6 +131,43 @@ func migrateFeatureFlagValues() {
 	DB.Exec("ALTER TABLE project.feature_flags DROP COLUMN IF EXISTS rollout_enabled")
 	DB.Exec("ALTER TABLE project.feature_flags DROP COLUMN IF EXISTS rollout_percentage")
 	DB.Exec("ALTER TABLE project.feature_flags DROP COLUMN IF EXISTS enabled")
+}
+
+func preMigrateEnvIDs() {
+	// Add environment_id as nullable — existing rows will be populated below before
+	// AutoMigrate enforces the NOT NULL constraint from the model tag.
+	DB.Exec("ALTER TABLE project.flag_environment_configs ADD COLUMN IF NOT EXISTS environment_id BIGINT")
+	DB.Exec("ALTER TABLE project.flag_environment_overrides ADD COLUMN IF NOT EXISTS environment_id BIGINT")
+
+	// Populate environment_id from the existing environment_name string column
+	DB.Exec(`
+		UPDATE project.flag_environment_configs fec
+		SET environment_id = e.id
+		FROM project.environments e
+		JOIN project.feature_flags ff ON ff.id = fec.flag_id
+		WHERE e.project_id = ff.project_id
+		AND e.name = fec.environment_name
+		AND fec.environment_id IS NULL
+	`)
+	DB.Exec(`
+		UPDATE project.flag_environment_overrides feo
+		SET environment_id = e.id
+		FROM project.environments e
+		JOIN project.feature_flags ff ON ff.id = feo.flag_id
+		WHERE e.project_id = ff.project_id
+		AND e.name = feo.environment_name
+		AND feo.environment_id IS NULL
+	`)
+
+	// Drop old name-based unique indexes so AutoMigrate can recreate them on the ID columns
+	DB.Exec("DROP INDEX IF EXISTS idx_flag_env")
+	DB.Exec("DROP INDEX IF EXISTS idx_flag_env_seg")
+}
+
+func postMigrateEnvIDs() {
+	// Drop the now-redundant string columns after AutoMigrate has run
+	DB.Exec("ALTER TABLE project.flag_environment_configs DROP COLUMN IF EXISTS environment_name")
+	DB.Exec("ALTER TABLE project.flag_environment_overrides DROP COLUMN IF EXISTS environment_name")
 }
 
 func migrateSegmentOverrides() {

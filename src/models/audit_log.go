@@ -42,6 +42,10 @@ const (
 
 	ActionOrgDelete = "org.delete"
 	ActionOrgPlan   = "org.plan"
+
+	ActionSDKKeyCreate = "sdk.create"
+	ActionSDKKeyRevoke = "sdk.revoke"
+	ActionSDKKeyReveal = "sdk.reveal"
 )
 
 type AuditLog struct {
