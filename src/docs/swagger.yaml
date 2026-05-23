@@ -79,6 +79,15 @@ definitions:
       name:
         type: string
     type: object
+  handlers.sdkKeyCreateRequest:
+    properties:
+      environmentId:
+        type: integer
+      name:
+        type: string
+      type:
+        type: string
+    type: object
   handlers.segmentCreateRequest:
     properties:
       description:
@@ -854,7 +863,7 @@ paths:
       summary: Create an environment in a project
       tags:
       - Environments
-  /organizations/{org_id}/projects/{project_id}/environments/{env_name}:
+  /organizations/{org_id}/projects/{project_id}/environments/{env_id}:
     delete:
       parameters:
       - description: Organization ID
@@ -867,11 +876,11 @@ paths:
         name: project_id
         required: true
         type: integer
-      - description: Environment name
+      - description: Environment ID
         in: path
-        name: env_name
+        name: env_id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -908,11 +917,11 @@ paths:
         name: project_id
         required: true
         type: integer
-      - description: Current environment name
+      - description: Environment ID
         in: path
-        name: env_name
+        name: env_id
         required: true
-        type: string
+        type: integer
       - description: New name
         in: body
         name: body
@@ -1081,11 +1090,11 @@ paths:
         name: flag_id
         required: true
         type: integer
-      - description: Environment name
+      - description: Environment ID
         in: query
-        name: env
+        name: env_id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -1173,10 +1182,9 @@ paths:
         name: flag_id
         required: true
         type: integer
-      - description: Environment name
+      - description: Environment name (for filtering)
         in: query
         name: env
-        required: true
         type: string
       produces:
       - application/json
@@ -1220,11 +1228,11 @@ paths:
         name: flag_id
         required: true
         type: integer
-      - description: Environment name
+      - description: Environment ID
         in: query
-        name: env
+        name: env_id
         required: true
-        type: string
+        type: integer
       - description: Configuration
         in: body
         name: body
@@ -1272,11 +1280,11 @@ paths:
         name: flag_id
         required: true
         type: integer
-      - description: Environment name
+      - description: Environment ID
         in: query
-        name: env
+        name: env_id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -1303,6 +1311,165 @@ paths:
       summary: Create flag configuration for an environment
       tags:
       - Flags
+  /organizations/{org_id}/projects/{project_id}/sdk-keys:
+    get:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: Filter by environment ID
+        in: query
+        name: env_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: List SDK keys for a project
+      tags:
+      - SDK Keys
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: Key definition
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.sdkKeyCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Create an SDK key
+      tags:
+      - SDK Keys
+  /organizations/{org_id}/projects/{project_id}/sdk-keys/{key_id}:
+    delete:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: SDK Key ID
+        in: path
+        name: key_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Revoke an SDK key
+      tags:
+      - SDK Keys
+  /organizations/{org_id}/projects/{project_id}/sdk-keys/{key_id}/reveal:
+    get:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: SDK Key ID
+        in: path
+        name: key_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DataResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Reveal the raw value of an SDK key
+      tags:
+      - SDK Keys
   /organizations/{org_id}/projects/{project_id}/segments:
     get:
       parameters:

@@ -26,7 +26,7 @@ func (f *flagEnvOverrideDAL) ListByFlagAndEnvID(flagID, envID uint, tx ...*gorm.
 
 func (f *flagEnvOverrideDAL) SetOverride(flagID, envID, segmentID uint, value string, enabled bool, priority int, tx ...*gorm.DB) error {
 	var override models.FlagEnvironmentOverride
-	err := f.db(tx...).Where("flag_id = ? AND environment_id = ? AND segment_id = ?", flagID, envID, segmentID).First(&override).Error
+	err := f.db(tx...).Unscoped().Where("flag_id = ? AND environment_id = ? AND segment_id = ?", flagID, envID, segmentID).First(&override).Error
 	if err != nil {
 		override = models.FlagEnvironmentOverride{
 			FlagID:        flagID,
@@ -41,7 +41,8 @@ func (f *flagEnvOverrideDAL) SetOverride(flagID, envID, segmentID uint, value st
 	override.Value = value
 	override.Enabled = enabled
 	override.Priority = priority
-	return f.db(tx...).Save(&override).Error
+	override.DeletedAt = gorm.DeletedAt{Valid: false}
+	return f.db(tx...).Unscoped().Save(&override).Error
 }
 
 func (f *flagEnvOverrideDAL) RemoveOverride(flagID, envID, segmentID uint, tx ...*gorm.DB) error {

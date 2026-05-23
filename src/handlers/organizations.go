@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"strconv"
 
 	"flagpole/src/controllers"
@@ -285,7 +286,8 @@ func UpdateMemberRole(c fiber.Ctx) (int, response.APIResponse) {
 	}
 
 	if err := dal.Organization.UpdateMemberRole(uint(orgID), userID, req.RoleID); err != nil {
-		return fiber.StatusInternalServerError, response.ErrorResponse{Error: err.Error()}
+		log.Printf("UpdateMemberRole: %v", err)
+		return fiber.StatusInternalServerError, response.Error500
 	}
 
 	logAudit(c, uint(orgID), nil, models.ActionMemberRole, role.Name, "Changed member '"+userID+"' role to '"+role.Name+"'", "")

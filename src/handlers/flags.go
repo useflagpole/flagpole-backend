@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 
 	"flagpole/src/controllers"
@@ -38,7 +39,8 @@ func flagErr(err error) (int, response.APIResponse) {
 	case errors.Is(err, controllers.ErrFlagNotFound):
 		return fiber.StatusNotFound, response.ErrorResponse{Error: err.Error()}
 	default:
-		return fiber.StatusBadRequest, response.ErrorResponse{Error: err.Error()}
+		log.Printf("flagErr: %v", err)
+		return fiber.StatusInternalServerError, response.Error500
 	}
 }
 
